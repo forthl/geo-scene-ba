@@ -105,6 +105,65 @@ class Quad:
                 if self.bot_right_tree is None:
                     return None
                 return self.bot_right_tree.search(p)
+
+    def findContainingQuad(self, t_left: Point, b_right: Point):    
+        if t_left.x <= self.top_left.x and t_left.y <= self.top_left.y and b_right.x >= self.bot_right.x and b_right.y >= self.bot_right.y:
+            return None
+        
+        q = None
+        
+        # left_tree
+        if int(self.width / 2) >= b_right.x:
+            # top left tree
+            if int(self.height / 2) >= b_right.y:
+                if self.top_left_tree is None:
+                    return None
+                q = self.top_left_tree.findContainingQuad(t_left, b_right)
+            # bot left tree
+            else:
+                if self.bot_left_tree is None:
+                    return None
+                q = self.bot_left_tree.findContainingQuad(t_left, b_right)
+        else:
+            # top right tree
+            if int(self.height / 2) >= b_right.y:
+                if self.top_right_tree is None:
+                    return None
+                q = self.top_right_tree.findContainingQuad(t_left, b_right)
+            # bot left tree
+            else:
+                if self.bot_right_tree is None:
+                    return None
+                q = self.bot_right_tree.findContainingQuad(t_left, b_right)
+
+        if q is None:
+            return self
+
+        return q
+            
+    def gather(self):
+        nodes = []
+
+        if self.n.pos != None:
+            return [self.n]
+        
+        if self.top_left_tree is not None:
+            node = self.top_left_tree.gather()
+            nodes = nodes + node
+
+        if self.bot_left_tree is not None:
+            node = self.bot_left_tree.gather()
+            nodes = nodes + node
+
+        if self.top_right_tree is not None:
+            node = self.top_right_tree.gather()
+            nodes = nodes + node
+
+        if self.bot_right_tree is not None:
+            node = self.bot_right_tree.gather()
+            nodes = nodes + node
+            
+        return nodes
             
     def findInRadius(self, p: Point, radius):
         min_x = max(p.x - radius, 0)
@@ -115,13 +174,10 @@ class Quad:
         
         nodes = []
         
-        for x in range(min_x, max_x):
-            for y in range(min_y, max_y):
-                n = self.search(Point(x, y))
-                
-                if not (n is None):
-                    nodes.append(n)
-                    
+        quad = self.findContainingQuad(Point(min_x, min_y), Point(max_x, max_y))
+        
+        nodes = quad.gather()
+                            
         return nodes
 
     def isBoundary(self, p: Point):
