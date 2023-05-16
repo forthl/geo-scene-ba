@@ -1,4 +1,5 @@
 import torch
+import utils.quad_tree as quad
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -94,7 +95,8 @@ class nuScenes(Dataset):
         plt.imshow(arr)
         plt.show()
 
-        tans = torch.zeros(range_image.shape)
+        tans = quad.Quad(quad.Point(), quad.Point(
+            range_image.shape[0], range_image.shape[1]))
         pdist = torch.nn.PairwiseDistance(p=2)
 
         for c in range(range_image.shape[0]):
@@ -104,11 +106,13 @@ class nuScenes(Dataset):
                 continue
 
             for i in range(col_indeces.shape[0]):
+                idx = col_indeces.shape[0] - i
                 if i == 0:
+                    tans.insert(quad.Node(quad.Point(idx, c), 0.))
                     continue
 
-                idx_A = col_indeces[i].item()
-                idx_B = col_indeces[i-1].item()
+                idx_A = col_indeces[idx-1].item()
+                idx_B = col_indeces[idx].item()
 
                 z_A = range_image[c][idx_A]
                 z_B = range_image[c][idx_B]
@@ -117,66 +121,48 @@ class nuScenes(Dataset):
                 B = torch.tensor([idx_B, z_B])
                 C = torch.tensor([idx_A, z_B])
 
-                tans[c][idx_A] = torch.atan2(pdist(B, C), pdist(A, C))
+                tan = torch.atan2(pdist(B, C), pdist(A, C))
 
-        tans_arr = np.asarray(tans.T)
-        plt.imshow(tans_arr)
-        plt.show()
-        
+                tans.insert(quad.Node(quad.Point(int(idx_A), c), tan.item()))
+
         labels = torch.zeros(range_image.shape)
-        
+
         for c in range(range_image.shape[0]):
             col_indeces = range_image[c].nonzero()
-            
-            for y in col_indeces:
-                if (labels[c][y[0]] == 0):
-                    self.labelGround(c, y[0].item(), labels, tans, range_image)
-            
+
+            if (labels[c][col_indeces[-1]] == 0):
+                self.labelGround(c, col_indeces[-1].item(), labels, tans)
+
         no_ground = torch.abs(labels - 1) * range_image
 
         no_ground_arr = np.asarray(no_ground.T)
         plt.imshow(no_ground_arr)
         plt.title("No Ground")
         plt.show()
-            
-    def labelGround(self, y, x, labels, tans, range_image):
+
+    def labelGround(self, y, x, labels, tans: quad.Quad):
         q = []
-        q.append((y, x))
-        
+        q.append(quad.Node(quad.Point(x, y), 0.))
+
         while len(q) > 0:
-            p = q[0]
-            labels[p] = 1
-            
-            neighbors = self.neighborhood(p, range_image)
-            
+            n: quad.Node = q[0]
+            labels[n.pos.y][n.pos.x] = 1
+
+            neighbors = self.neighborhood(n.pos, tans)
+
             for n in neighbors:
-                n = (n[0].item(), n[1].item())
-                
-                if labels[n] == 1:
+                if labels[n.pos.y][n.pos.x] == 1:
                     continue
-                
-                if np.abs(tans[p] - tans[n]) == 0:
+
+                if np.abs(n.data - n.data) < 0.0872665 and n not in q:
                     q.append(n)
-        
-            del q[0]
-        
 
-    def neighborhood(self, point, range_image, k=2):
-        radius = 0
-        neighbors = torch.tensor([])
+            q = q[1:]
 
-        while len(neighbors) < k+1:
-            radius += 1
-            
-            y_min = max(point[0] - radius, 0)
-            y_max = min(point[0] + radius, range_image.shape[0])
+    def neighborhood(self, point, tans: quad.Quad):
+        radius = 20
+        neighbors = []
 
-            x_min = max(point[1] - radius, 0)
-            x_max = min(point[1] + radius, range_image.shape[0])
-            
-            neighbors = range_image[y_min: y_max, x_min:x_max].nonzero()
-            
-            for n in neighbors:
-                print(n)
+        neighbors = tans.findInRadius(point, radius)
 
         return neighbors
