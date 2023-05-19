@@ -4,6 +4,7 @@
 Mostly copy-paste from CutLER repo. https://github.com/facebookresearch/CutLER
 """
 
+import os
 import sys
 
 sys.path.append('../')
@@ -15,7 +16,11 @@ import PIL.Image as Image
 import torch
 import torch.nn.functional as F
 from torchvision import transforms
+from pycocotools import mask
+import pycocotools.mask as mask_util
 from scipy.linalg import eigh
+from scipy import ndimage
+import json
 
 from third_party.TokenCut.unsupervised_saliency_detection import utils, metric
 from third_party.TokenCut.unsupervised_saliency_detection.object_discovery import detect_box
@@ -174,64 +179,131 @@ def maskcut(img_path, backbone,patch_size, tau, N=1, fixed_size=480, cpu=False):
 
     return bipartitions, eigvecs, I_new
 
+def post_process_dcrf(I, bipartition, cpu):
+    # post-process pesudo-masks with CRF
+    pseudo_mask = densecrf(np.array(I_new), bipartition)
+    pseudo_mask = ndimage.binary_fill_holes(pseudo_mask >= 0.5)
+
+    # filter out the mask that have a very different pseudo-mask after the CRF
+    mask1 = torch.from_numpy(bipartition)
+    mask2 = torch.from_numpy(pseudo_mask)
+    #
+    if not cpu:
+        mask1 = mask1.cuda()
+        mask2 = mask2.cuda()
+    if metric.IoU(mask1, mask2) < 0.5:
+        pseudo_mask = pseudo_mask * -1
+        print("Check")
+
+    # construct binary pseudo-masks
+    pseudo_mask[pseudo_mask < 0] = 0
+
+    return pseudo_mask
+
 def vis_mask(input, mask, mask_color) :
     fg = mask > 0.5
     rgb = np.copy(input)
     rgb[fg] = (rgb[fg] * 0.3 + np.array(mask_color) * 0.7).astype(np.uint8)
     return Image.fromarray(rgb)
 
+def create_image_info(image_id, file_name, image_size,
+                      license_id=1, coco_url="", flickr_url=""):
+    """Return image_info in COCO style
+    Args:
+        image_id: the image ID
+        file_name: the file name of each image
+        image_size: image size in the format of (width, height)
+        date_captured: the date this image info is created
+        license: license of this image
+        coco_url: url to COCO images if there is any
+        flickr_url: url to flickr if there is any
+    """
+    image_info = {
+            "id": image_id,
+            "file_name": file_name,
+            "width": image_size[0],
+            "height": image_size[1],
+    }
+    return image_info
+
+
+def create_annotation_info(annotation_id, image_id, bipartition, crop, feat):
+    # Return annotation info
+
+    upper = np.max(bipartition)
+    lower = np.min(bipartition)
+    thresh = upper / 2.0
+    bipartition[bipartition > thresh] = upper
+    bipartition[bipartition <= thresh] = lower
+
+    binary_mask_encoded = mask.encode(np.asfortranarray(bipartition.astype(np.uint8)))
+    area = mask.area(binary_mask_encoded)
+    if area < 1:
+        return None
+
+    rle = mask_util.encode(np.array(bipartition[..., None], order="F", dtype="uint8"))[0]
+    rle['counts'] = rle['counts'].decode('ascii')
+    segmentation = rle
+
+    annotation_info = {
+        "id": annotation_id,
+        "image_id": image_id,
+        "bbox": crop,
+        "area": area.tolist(),
+        # "features": feat.tolist(),
+        "segmentation": segmentation
+    }
+
+    return annotation_info
+
+output = {
+    "images": [],
+    "annotations": []
+}
+
 url = "https://dl.fbaipublicfiles.com/dino/dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth"
 feat_dim = 768
 vit_arch = 'base'
 vit_feat = 'k'
 patch_size = 8
-img_path = 'imgs/demo4.jpg'
+img_path = 'imgs/test.jpg'
 fixed_size = 120
+out_dir = 'out'
+tau = 0.2
+N = 6
+
+if out_dir is not None and not os.path.exists(out_dir):
+    os.mkdir(out_dir)
 
 backbone = dino.ViTFeat(url, feat_dim, vit_arch, vit_feat, patch_size)
 backbone.eval()
-
 feat = ''
 
+image_id, segmentation_id = 1, 1
+
 try:
-    bipartitions, eigvecs, I_new = maskcut(img_path, backbone, patch_size, tau=0.2, N=6, fixed_size=fixed_size, cpu=True)
+    bipartitions, eigvecs, I_new = maskcut(img_path, backbone, patch_size, tau=tau, N=N, fixed_size=fixed_size, cpu=True)
 except:
     print(f'Skipping {img_path}')
+
+img_name = img_path
 
 I = Image.open(img_path).convert('RGB')
 width, height = I.size
 crop_list = []  # store crops in form of left, top, right and bottom bounds
 feat_list = []
+image_names = []
 
-for bipartition in bipartitions:
+for pseudo_mask in bipartitions:
 
-    # print(bipartition.shape)
-    # print(type(bipartition))
-    # # post-process pesudo-masks with CRF
-    # pseudo_mask = densecrf(np.array(I_new), bipartition)
-    # pseudo_mask = ndimage.binary_fill_holes(pseudo_mask >= 0.5)
-    #
-    # # filter out the mask that have a very different pseudo-mask after the CRF
-    # mask1 = torch.from_numpy(bipartition)
-    # mask2 = torch.from_numpy(pseudo_mask)
-    #
-    # if metric.IoU(mask1, mask2) < 0.5:
-    #     pseudo_mask = pseudo_mask * -1
-    #
-    #
-    # # construct binary pseudo-masks
-    # pseudo_mask[pseudo_mask < 0] = 0
-    #
-    # print(pseudo_mask.shape)
-    # print(type(bipartition))
-    #
-    # #pseudo_mask = Image.fromarray(np.uint8(pseudo_mask * 255))
-    # #pseudo_mask = np.asarray(pseudo_mask.resize((width, height)))
+    # post process and filter out masks
+    #pseudo_mask = post_process_dcrf(I_new, pseudo_mask, False)
 
     # find bounding box or continue if it doesn't exist
-    if np.any(bipartition):
-        rmin, rmax, cmin, cmax = bbox2(bipartition)
+    if np.any(pseudo_mask):
+        rmin, rmax, cmin, cmax = bbox2(pseudo_mask)
     else:
+        print("Pseudo mask is empty")
         continue
 
     # crop original image to bounding box size
@@ -240,6 +312,7 @@ for bipartition in bipartitions:
     cmin = width * cmin / fixed_size
     cmax = width * cmax / fixed_size
     im1 = I.crop((cmin, rmin, cmax, rmax))
+    crop = (cmin, rmin, cmax, rmax)
 
     # get DINO features for cropped object
     I_new = im1.resize((fixed_size, fixed_size), PIL.Image.LANCZOS)
@@ -247,12 +320,26 @@ for bipartition in bipartitions:
     tensor = ToTensor(I_resize).unsqueeze(0)
     feat = backbone(tensor)[0].numpy()
 
-    # add crop to list
-    crop_list.append((cmin, rmin, cmax, rmax))
 
-    # add features to list
-    feat_list.append(feat)
+    # create image info
+    if img_name not in image_names:
+        image_info = create_image_info(image_id, img_path, (height, width, 3))
+        output["images"].append(image_info)
+        image_names.append(img_name)
+
+    # create annotation info
+    annotation_info = create_annotation_info(segmentation_id, image_id, pseudo_mask, crop, feat)
+    if annotation_info is not None:
+        output["annotations"].append(annotation_info)
+        segmentation_id += 1
+
 
 for crop in crop_list:
     im1 = I.crop(crop)
     im1.show()
+
+# save annotations
+json_name = '{}/cityscapes_fixsize{}_tau{}_N{}.json'.format(out_dir, fixed_size, tau, N)
+
+with open(json_name, 'w') as output_json_file:
+    json.dump(output, output_json_file)
