@@ -169,6 +169,7 @@ def maskcut(img_path, backbone,patch_size, tau, N=1, fixed_size=480, cpu=False):
     I_resize, w, h, feat_w, feat_h = utils.resize_pil(I_new, patch_size)
 
     tensor = ToTensor(I_resize).unsqueeze(0)
+    if not cpu: tensor = tensor.cuda()
     feat = backbone(tensor)[0]
 
     _, bipartition, eigvec = maskcut_forward(feat, [feat_h, feat_w], [patch_size, patch_size], [h, w], tau, N, cpu)
@@ -286,6 +287,8 @@ if __name__ == "__main__":
 
     backbone = dino.ViTFeat(url, feat_dim, vit_arch, vit_feat, patch_size)
     backbone.eval()
+    if not args.cpu:
+        backbone.cuda()
     feat = ''
 
     image_id, segmentation_id = 1, 1
