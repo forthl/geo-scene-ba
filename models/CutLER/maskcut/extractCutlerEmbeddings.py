@@ -6,9 +6,8 @@ Mostly copy-paste from CutLER repo. https://github.com/facebookresearch/CutLER
 
 import os
 import sys
-
 sys.path.append('../')
-
+import argparse
 import numpy as np
 import dino
 import PIL
@@ -261,85 +260,95 @@ output = {
     "annotations": []
 }
 
-url = "https://dl.fbaipublicfiles.com/dino/dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth"
-feat_dim = 768
-vit_arch = 'base'
-vit_feat = 'k'
-patch_size = 8
-img_path = 'imgs/test.jpg'
-fixed_size = 120
-out_dir = 'out'
-tau = 0.2
-N = 6
 
-if out_dir is not None and not os.path.exists(out_dir):
-    os.mkdir(out_dir)
+if __name__ == "__main__":
 
-backbone = dino.ViTFeat(url, feat_dim, vit_arch, vit_feat, patch_size)
-backbone.eval()
-feat = ''
+    parser = argparse.ArgumentParser('MaskCut script')
 
-image_id, segmentation_id = 1, 1
+    # arguments
+    parser.add_argument('--out_dir', type=str, help='output directory')
+    parser.add_argument('--dataset-path', type=str, default="imagenet/train/", help='path to the dataset')
+    parser.add_argument('--tau', type=float, default=0.2, help='threshold used for producing binary graph')
+    parser.add_argument('--fixed_size', type=int, default=480, help='rescale the input images to a fixed size')
+    parser.add_argument('--N', type=int, default=6, help='the maximum number of pseudo-masks per image')
+    parser.add_argument('--cpu', action='store_true', help='use cpu')
+    args = parser.parse_args()
 
-try:
-    bipartitions, eigvecs, I_new = maskcut(img_path, backbone, patch_size, tau=tau, N=N, fixed_size=fixed_size, cpu=True)
-except:
-    print(f'Skipping {img_path}')
+    url = "https://dl.fbaipublicfiles.com/dino/dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth"
+    feat_dim = 768
+    vit_arch = 'base'
+    vit_feat = 'k'
+    patch_size = 8
+    img_path = 'imgs/test.jpg'
 
-img_name = img_path
+    if args.out_dir is not None and not os.path.exists(args.out_dir):
+        os.mkdir(args.out_dir)
 
-I = Image.open(img_path).convert('RGB')
-width, height = I.size
-crop_list = []  # store crops in form of left, top, right and bottom bounds
-feat_list = []
-image_names = []
+    backbone = dino.ViTFeat(url, feat_dim, vit_arch, vit_feat, patch_size)
+    backbone.eval()
+    feat = ''
 
-for pseudo_mask in bipartitions:
+    image_id, segmentation_id = 1, 1
 
-    # post process and filter out masks
-    #pseudo_mask = post_process_dcrf(I_new, pseudo_mask, False)
+    try:
+        bipartitions, eigvecs, I_new = maskcut(img_path, backbone, patch_size, tau=args.tau, N=args.N, fixed_size=args.fixed_size, cpu=args.cpu)
+    except:
+        print(f'Skipping {img_path}')
 
-    # find bounding box or continue if it doesn't exist
-    if np.any(pseudo_mask):
-        rmin, rmax, cmin, cmax = bbox2(pseudo_mask)
-    else:
-        print("Pseudo mask is empty")
-        continue
+    img_name = img_path
 
-    # crop original image to bounding box size
-    rmin = height * rmin / fixed_size
-    rmax = height * rmax / fixed_size
-    cmin = width * cmin / fixed_size
-    cmax = width * cmax / fixed_size
-    im1 = I.crop((cmin, rmin, cmax, rmax))
-    crop = (cmin, rmin, cmax, rmax)
+    I = Image.open(img_path).convert('RGB')
+    width, height = I.size
+    crop_list = []  # store crops in form of left, top, right and bottom bounds
+    feat_list = []
+    image_names = []
 
-    # get DINO features for cropped object
-    I_new = im1.resize((fixed_size, fixed_size), PIL.Image.LANCZOS)
-    I_resize, _, _, _, _ = utils.resize_pil(I_new, patch_size)
-    tensor = ToTensor(I_resize).unsqueeze(0)
-    feat = backbone(tensor)[0].numpy()
+    for pseudo_mask in bipartitions:
 
+        # post process and filter out masks
+        #pseudo_mask = post_process_dcrf(I_new, pseudo_mask, False)
 
-    # create image info
-    if img_name not in image_names:
-        image_info = create_image_info(image_id, img_path, (height, width, 3))
-        output["images"].append(image_info)
-        image_names.append(img_name)
+        # find bounding box or continue if it doesn't exist
+        if np.any(pseudo_mask):
+            rmin, rmax, cmin, cmax = bbox2(pseudo_mask)
+        else:
+            print("Pseudo mask is empty")
+            continue
 
-    # create annotation info
-    annotation_info = create_annotation_info(segmentation_id, image_id, pseudo_mask, crop, feat)
-    if annotation_info is not None:
-        output["annotations"].append(annotation_info)
-        segmentation_id += 1
+        # crop original image to bounding box size
+        rmin = height * rmin / args.fixed_size
+        rmax = height * rmax / args.fixed_size
+        cmin = width * cmin / args.fixed_size
+        cmax = width * cmax / args.fixed_size
+        im1 = I.crop((cmin, rmin, cmax, rmax))
+        crop = (cmin, rmin, cmax, rmax)
+
+        # get DINO features for cropped object
+        I_new = im1.resize((args.fixed_size, args.fixed_size), PIL.Image.LANCZOS)
+        I_resize, _, _, _, _ = utils.resize_pil(I_new, patch_size)
+        tensor = ToTensor(I_resize).unsqueeze(0)
+        feat = backbone(tensor)[0].numpy()
 
 
-for crop in crop_list:
-    im1 = I.crop(crop)
-    im1.show()
+        # create image info
+        if img_name not in image_names:
+            image_info = create_image_info(image_id, img_path, (height, width, 3))
+            output["images"].append(image_info)
+            image_names.append(img_name)
 
-# save annotations
-json_name = '{}/cityscapes_fixsize{}_tau{}_N{}.json'.format(out_dir, fixed_size, tau, N)
+        # create annotation info
+        annotation_info = create_annotation_info(segmentation_id, image_id, pseudo_mask, crop, feat)
+        if annotation_info is not None:
+            output["annotations"].append(annotation_info)
+            segmentation_id += 1
 
-with open(json_name, 'w') as output_json_file:
-    json.dump(output, output_json_file)
+
+    for crop in crop_list:
+        im1 = I.crop(crop)
+        im1.show()
+
+    # save annotations
+    json_name = '{}/cityscapes_fixsize{}_tau{}_N{}.json'.format(args.out_dir, args.fixed_size, args.tau, args.N)
+
+    with open(json_name, 'w') as output_json_file:
+        json.dump(output, output_json_file)
