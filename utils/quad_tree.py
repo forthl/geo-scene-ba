@@ -172,8 +172,6 @@ class Quad:
         min_y = max(p.y - radius, 0)
         max_y = min(p.y + radius, self.height)
         
-        nodes = []
-        
         quad = self.findContainingQuad(Point(min_x, min_y), Point(max_x, max_y))
         
         nodes = quad.gather()

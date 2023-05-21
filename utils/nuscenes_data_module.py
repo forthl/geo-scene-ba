@@ -1,12 +1,15 @@
 import torch
-import utils.quad_tree as quad
+
 import numpy as np
-import matplotlib.pyplot as plt
 
 from torchvision import transforms
 from torch.utils.data import Dataset
 
 from nuscenes.nuscenes import NuScenes
+from utils.quad_tree import Point, Node, Quad
+
+from utils.representation import pointcloudOnImage, plotGraph
+from utils.data_utils import generatePointCloudFromRangeImage, generateQuadTreeFromRangeImage, generateRangeImageFromPointCloud, generateRangeImageFromTree
 
 
 class nuScenes(Dataset):
@@ -27,17 +30,16 @@ class nuScenes(Dataset):
         lidar_data = self.nusc.get('sample_data', sample['data']['LIDAR_TOP'])
 
         pointcloud, colors, image = self.nusc.explorer.map_pointcloud_to_image(
-            lidar_data['token'], cam_front_data['token'], )
+            lidar_data['token'], cam_front_data['token']
+        )
 
-        transform = transforms.ToTensor()
+        transform = transforms.Compose([transforms.PILToTensor()])
 
-        image = transform(image)
+        image = transform(image).permute(0, 2, 1).T
         pointcloud = torch.tensor(pointcloud)
+        pointcloud[2, :] = torch.tensor(colors)
 
-        meta = {'colors': colors}
-        meta['geo-point-seg'] = self.geoPointSegs(pointcloud, colors)
-
-        return pointcloud, image, meta
+        return pointcloud, image, self.geoPointSegs(pointcloud, image)
 
     def collate_fn(data):
         min = 2**32
@@ -46,6 +48,7 @@ class nuScenes(Dataset):
         batchsize = len(data)
 
         # To discuss: currently only cutting away, should this be randomized?
+
         for (d, i) in data:
             min = d.shape[1] if d.shape[1] < min else min
 
@@ -72,97 +75,150 @@ class nuScenes(Dataset):
         self.getSamplesForScene(sample['next'], last_sample_token, samples)
         return samples
 
-    def geoPointSegs(self, pointcloud, colors):
-        pointcloud = torch.round(pointcloud.T)
-        pointcloud = self.removeGround(pointcloud, colors)
+    def geoPointSegs(self, pointcloud, image):
+        pc = pointcloud
+        pointcloud = torch.round(pointcloud.T).long()
+        range_image = generateRangeImageFromPointCloud(pointcloud, image.T.shape[1:])
+        pointcloudOnImage(generatePointCloudFromRangeImage(range_image), image)
+        range_without_ground = removeGround(range_image)
+        pointcloudOnImage(generatePointCloudFromRangeImage(range_without_ground), image)
 
-    def removeGround(self, pointcloud, colors):
-        cols = torch.unique(pointcloud.T[0])
-        rows = torch.unique(pointcloud.T[1])
+        segments = labelRangeImage(range_without_ground)
+        
+        pointcloudOnImage(generatePointCloudFromRangeImage(segments), image)
 
-        range_image = torch.zeros((cols.shape[0], rows.shape[0]))
 
-        for p in range(pointcloud.shape[0]):
-            col = cols == pointcloud[p, 0].item()
-            row = rows == pointcloud[p, 1].item()
+def removeGround(range_image):
+    range_image = range_image
+    tans = generateQuadTreeFromRangeImage(range_image)
+    pdist = torch.nn.PairwiseDistance(p=2)
 
-            x = int(col.nonzero().item())
-            y = int(row.nonzero().item())
+    for c in range(range_image.shape[0]):
+        col_indeces = range_image[c].nonzero()
 
-            range_image[x][y] += colors[p]
+        if col_indeces.shape[0] <= 1:
+            continue
 
-        arr = np.asarray(range_image.T)
-        plt.imshow(arr)
-        plt.show()
-
-        tans = quad.Quad(quad.Point(), quad.Point(
-            range_image.shape[0], range_image.shape[1]))
-        pdist = torch.nn.PairwiseDistance(p=2)
-
-        for c in range(range_image.shape[0]):
-            col_indeces = range_image[c].nonzero()
-
-            if col_indeces.shape[0] <= 1:
+        for i in range(col_indeces.shape[0]):
+            idx = col_indeces.shape[0] - i - 1
+            if i == 0:
+                tans.insert(Node(Point(col_indeces[idx].item(), c), 0.))
                 continue
 
-            for i in range(col_indeces.shape[0]):
-                idx = col_indeces.shape[0] - i
-                if i == 0:
-                    tans.insert(quad.Node(quad.Point(idx, c), 0.))
-                    continue
+            idx_A = col_indeces[idx+1].item()
+            idx_B = col_indeces[idx].item()
 
-                idx_A = col_indeces[idx-1].item()
-                idx_B = col_indeces[idx].item()
+            z_A = range_image[c][idx_A]
+            z_B = range_image[c][idx_B]
 
-                z_A = range_image[c][idx_A]
-                z_B = range_image[c][idx_B]
+            A = torch.tensor([idx_A, z_A])
+            B = torch.tensor([idx_B, z_B])
+            C = torch.tensor([idx_A, z_B])
 
-                A = torch.tensor([idx_A, z_A])
-                B = torch.tensor([idx_B, z_B])
-                C = torch.tensor([idx_A, z_B])
+            tan = torch.atan2(pdist(B, C), pdist(A, C)).item()
 
-                tan = torch.atan2(pdist(B, C), pdist(A, C))
+            tans.insert(Node(Point(int(idx_B), c), tan))
 
-                tans.insert(quad.Node(quad.Point(int(idx_A), c), tan.item()))
+    labels = torch.zeros(range_image.shape)
 
-        labels = torch.zeros(range_image.shape)
+    for c in range(range_image.shape[0]):
+        col_indeces = range_image[c].nonzero()
 
-        for c in range(range_image.shape[0]):
-            col_indeces = range_image[c].nonzero()
+        if col_indeces.shape[0] <= 0:
+            continue
 
-            if (labels[c][col_indeces[-1]] == 0):
-                self.labelGround(c, col_indeces[-1].item(), labels, tans)
+        if (labels[c][col_indeces[-1]] == 0):
+            labelGround(c, col_indeces[-1].item(), labels, tans)
 
-        no_ground = torch.abs(labels - 1) * range_image
+    no_ground = torch.abs(labels - 1) * range_image
 
-        no_ground_arr = np.asarray(no_ground.T)
-        plt.imshow(no_ground_arr)
-        plt.title("No Ground")
-        plt.show()
+    return no_ground
 
-    def labelGround(self, y, x, labels, tans: quad.Quad):
-        q = []
-        q.append(quad.Node(quad.Point(x, y), 0.))
 
-        while len(q) > 0:
-            n: quad.Node = q[0]
-            labels[n.pos.y][n.pos.x] = 1
+def labelGround(y, x, labels, tans: Quad):
+    q = []
+    q.append(Node(Point(x, y), 0.))
 
-            neighbors = self.neighborhood(n.pos, tans)
+    while len(q) > 0:
+        n: Node = q[0]
 
-            for n in neighbors:
-                if labels[n.pos.y][n.pos.x] == 1:
-                    continue
+        labels[n.pos.y][n.pos.x] = 1
+        neighbors = neighborhood(n.pos, tans)
 
-                if np.abs(n.data - n.data) < 0.0872665 and n not in q:
-                    q.append(n)
+        for n in neighbors:
+            if labels[n.pos.y][n.pos.x] == 1:
+                continue
+            if n.data == 0:
+                continue
+            if np.abs(n.data - n.data) < 0.0872665 and n not in q:
+                q.append(n)
 
-            q = q[1:]
+        q = q[1:]
 
-    def neighborhood(self, point, tans: quad.Quad):
-        radius = 20
-        neighbors = []
 
-        neighbors = tans.findInRadius(point, radius)
+def labelRangeImage(range_image):
+    tree = generateQuadTreeFromRangeImage(range_image, True)
+    labels = generateQuadTreeFromRangeImage(range_image)
 
-        return neighbors
+    l = 1
+
+    nodes = tree.gather()
+
+    for n in nodes:
+        if labels.search(n.pos) is None:
+            labelSegments(n, tree, labels, l)
+            l += 1
+
+    image = generateRangeImageFromTree(labels)
+    
+    return image
+
+def labelSegments(n: Node, tree: Quad, labels: Quad, label):
+    q = []
+    q.append(n)
+
+    while len(q) > 0:
+        n: Node = q[0]
+
+        labels.insert(Node(n.pos, label))
+
+        nodes = neighborhood(n.pos, tree)
+
+        for nn in nodes:
+            if labels.search(nn.pos) is not None:
+                continue
+
+            d1 = torch.tensor(max(n.data.item(), nn.data.item()))
+            d2 = torch.tensor(min(n.data.item(), nn.data.item()))
+
+            phi = angle_between(np.array([n.pos.x, n.pos.y, n.data]),
+                                np.array([nn.pos.x, nn.pos.y, nn.data])) if n.data > nn.data else angle_between(np.array(
+                                    [nn.pos.x, nn.pos.y, nn.data]), np.array([n.pos.x, n.pos.y, n.data]))
+
+            beta = np.arctan2(d2 * np.sin(phi), d1 - d2 * np.cos(phi))
+            if beta > 0.349066 and nn not in q:
+                q.append(nn)
+
+        q = q[1:]
+
+
+def neighborhood(point, tans: Quad):
+    radius = 5
+
+    neighbors = []
+    neighbors = tans.findInRadius(point, radius)
+
+    return neighbors
+
+
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
+
+
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
