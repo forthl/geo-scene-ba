@@ -26,7 +26,7 @@ class nuScenes(Dataset):
 
         sample = self.samples[idx]
         cam_front_data = self.nusc.get(
-            'sample_data', sample['data']['CAM_FRONT'])
+            'sample_data', sample['data']['CAM_FRONT_RIGHT'])
         lidar_data = self.nusc.get('sample_data', sample['data']['LIDAR_TOP'])
 
         pointcloud, colors, image = self.nusc.explorer.map_pointcloud_to_image(
@@ -76,7 +76,6 @@ class nuScenes(Dataset):
         return samples
 
     def geoPointSegs(self, pointcloud, image):
-        pc = pointcloud
         pointcloud = torch.round(pointcloud.T).long()
         range_image = generateRangeImageFromPointCloud(pointcloud, image.T.shape[1:])
         pointcloudOnImage(generatePointCloudFromRangeImage(range_image), image)
@@ -89,12 +88,12 @@ class nuScenes(Dataset):
 
 
 def removeGround(range_image):
-    range_image = range_image
     tans = generateQuadTreeFromRangeImage(range_image)
     pdist = torch.nn.PairwiseDistance(p=2)
 
     for c in range(range_image.shape[0]):
-        col_indeces = range_image[c].nonzero()
+        c_idx = range_image.shape[0] - c - 1
+        col_indeces = range_image[c_idx].nonzero()
 
         if col_indeces.shape[0] <= 1:
             continue
@@ -108,8 +107,8 @@ def removeGround(range_image):
             idx_A = col_indeces[idx+1].item()
             idx_B = col_indeces[idx].item()
 
-            z_A = range_image[c][idx_A]
-            z_B = range_image[c][idx_B]
+            z_A = range_image[c_idx][idx_A]
+            z_B = range_image[c_idx][idx_B]
 
             A = torch.tensor([idx_A, z_A])
             B = torch.tensor([idx_B, z_B])
@@ -117,18 +116,18 @@ def removeGround(range_image):
 
             tan = torch.atan2(pdist(B, C), pdist(A, C)).item()
 
-            tans.insert(Node(Point(int(idx_B), c), tan))
+            tans.insert(Node(Point(int(idx_B), c_idx), tan))
 
     labels = torch.zeros(range_image.shape)
 
     for c in range(range_image.shape[0]):
-        col_indeces = range_image[c].nonzero()
+        idx = range_image.shape[0] - c - 1
+        col_indeces = range_image[idx].nonzero()
 
-        if col_indeces.shape[0] <= 0:
+        if col_indeces.shape[0] <= 1:
             continue
 
-        if (labels[c][col_indeces[-1]] == 0):
-            labelGround(c, col_indeces[-1].item(), labels, tans)
+        labelGround(idx, col_indeces[-1].item(), labels, tans)
 
     no_ground = torch.abs(labels - 1) * range_image
 
@@ -140,17 +139,24 @@ def labelGround(y, x, labels, tans: Quad):
     q.append(Node(Point(x, y), 0.))
 
     while len(q) > 0:
-        n: Node = q[0]
+        node: Node = q[0]
 
-        labels[n.pos.y][n.pos.x] = 1
-        neighbors = neighborhood(n.pos, tans)
+        labels[node.pos.y][node.pos.x] = 1
+        neighbors = neighborhood(node.pos, tans)
 
         for n in neighbors:
+            if n in q:
+                continue
             if labels[n.pos.y][n.pos.x] == 1:
                 continue
             if n.data == 0:
+                q.append(n)
                 continue
-            if np.abs(n.data - n.data) < 0.0872665 and n not in q:
+            if node.data == 0.:
+                q.append(n)
+                continue
+                
+            if np.abs(node.data - n.data) < 0.003:
                 q.append(n)
 
         q = q[1:]
@@ -196,14 +202,14 @@ def labelSegments(n: Node, tree: Quad, labels: Quad, label):
                                     [nn.pos.x, nn.pos.y, nn.data]), np.array([n.pos.x, n.pos.y, n.data]))
 
             beta = np.arctan2(d2 * np.sin(phi), d1 - d2 * np.cos(phi))
-            if beta > 0.349066 and nn not in q:
+            if beta > 0.174533 and nn not in q:
                 q.append(nn)
 
         q = q[1:]
 
 
 def neighborhood(point, tans: Quad):
-    radius = 5
+    radius = 25
 
     neighbors = []
     neighbors = tans.findInRadius(point, radius)

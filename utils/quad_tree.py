@@ -174,6 +174,9 @@ class Quad:
         
         quad = self.findContainingQuad(Point(min_x, min_y), Point(max_x, max_y))
         
+        if quad is None:
+            return []
+        
         nodes = quad.gather()
                             
         return nodes
