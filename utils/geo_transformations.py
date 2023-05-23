@@ -4,6 +4,35 @@ import numpy as np
 from utils.quad_tree import Point, Node, Quad
 from utils.data_utils import generateQuadTreeFromRangeImage, generateRangeImageFromTree
 
+def labelGround(y, x, labels, tans: Quad):
+    q = []
+    p = Point(x, y)
+    n = tans.search(p)
+    
+    if n is None:
+        n = Node(p, 1.5)
+    
+    q.append(n)
+
+    while len(q) > 0:
+        node: Node = q[0]
+
+        labels[node.pos.y][node.pos.x] = 1
+        neighbors = neighborhood(node.pos, tans)
+
+        for n in neighbors:
+            if n in q:
+                continue
+            if labels[n.pos.y][n.pos.x] == 1:
+                continue
+            if node.data == 1.5:
+                q.append(n)
+                continue
+                
+            if np.abs(node.data - n.data) < 10:
+                q.append(n)
+
+        q = q[1:]
 
 def removeGround(range_image):
     tans = generateQuadTreeFromRangeImage(range_image.T)
@@ -57,36 +86,6 @@ def removeGround(range_image):
     no_ground = torch.abs(labels - 1) * range_image
 
     return no_ground
-
-def labelGround(y, x, labels, tans: Quad):
-    q = []
-    p = Point(x, y)
-    n = tans.search(p)
-    
-    if n is None:
-        n = Node(p, 1.5)
-    
-    q.append(n)
-
-    while len(q) > 0:
-        node: Node = q[0]
-
-        labels[node.pos.y][node.pos.x] = 1
-        neighbors = neighborhood(node.pos, tans)
-
-        for n in neighbors:
-            if n in q:
-                continue
-            if labels[n.pos.y][n.pos.x] == 1:
-                continue
-            if node.data == 1.5:
-                q.append(n)
-                continue
-                
-            if np.abs(node.data - n.data) < 10:
-                q.append(n)
-
-        q = q[1:]
 
 def labelRangeImage(range_image):
     tree = generateQuadTreeFromRangeImage(range_image, True)
