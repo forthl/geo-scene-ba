@@ -17,9 +17,8 @@ def removeGround(range_image):
             idx = col_indeces.shape[0] - i - 1
             
             if i == 0:
-                tans.insert(Node(Point(col_indeces[idx].item(), c), 1.5))
+                #tans.insert(Node(Point(col_indeces[idx].item(), c), 1.5))
                 continue
-
 
             #TODO: CHANGE TO epsilon CALCULATION
             idx_A = col_indeces[idx+1].item()
@@ -28,11 +27,19 @@ def removeGround(range_image):
             z_A = range_image[c_idx][idx_A]
             z_B = range_image[c_idx][idx_B]
 
-            A = torch.tensor([idx_A, z_A])
-            B = torch.tensor([idx_B, z_B])
-            C = torch.tensor([idx_A, z_B])
+            # A = torch.tensor([idx_A, z_A])
+            # B = torch.tensor([idx_B, z_B])
+            # C = torch.tensor([idx_A, z_B])
 
-            tan = torch.atan2(pdist(B, C), pdist(A, C)).item()
+            # tan = torch.atan2(pdist(B, C), pdist(A, C)).item()
+
+            epsilon_a = angle_between(np.array([c_idx, idx_A, -z_A]), np.array([c_idx, 1, 0]))
+            epsilon_b = angle_between(np.array([c_idx, idx_B, -z_B]), np.array([c_idx, 1, 0]))
+            
+            delta_z = np.abs(z_A * np.sin(epsilon_a)- z_B * np.sin(epsilon_b))
+            delta_x = np.abs(z_A * np.cos(epsilon_a)- z_B * np.cos(epsilon_b))
+            
+            tan = torch.atan2(delta_z, delta_x).item()
 
             tans.insert(Node(Point(int(idx_A), c_idx), tan))
 
