@@ -1,17 +1,22 @@
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 
+from scipy.interpolate import NearestNDInterpolator
 from utils.quad_tree import Point, Node, Quad
 from utils.data_utils import generateQuadTreeFromRangeImage, generateRangeImageFromTree
+
+from utils.representation import plotGraph
+
 
 def labelGround(y, x, labels, tans: Quad):
     q = []
     p = Point(x, y)
     n = tans.search(p)
-    
+
     if n is None:
         n = Node(p, 1.5)
-    
+
     q.append(n)
 
     while len(q) > 0:
@@ -28,11 +33,12 @@ def labelGround(y, x, labels, tans: Quad):
             if node.data == 1.5:
                 q.append(n)
                 continue
-                
+
             if np.abs(node.data - n.data) < 10:
                 q.append(n)
 
         q = q[1:]
+
 
 def removeGround(range_image):
     tans = generateQuadTreeFromRangeImage(range_image.T)
@@ -44,12 +50,12 @@ def removeGround(range_image):
 
         for i in range(col_indeces.shape[0]):
             idx = col_indeces.shape[0] - i - 1
-            
+
             if i == 0:
                 #tans.insert(Node(Point(col_indeces[idx].item(), c), 1.5))
                 continue
 
-            #TODO: CHANGE TO epsilon CALCULATION
+            # TODO: CHANGE TO epsilon CALCULATION
             idx_A = col_indeces[idx+1].item()
             idx_B = col_indeces[idx].item()
 
@@ -62,18 +68,20 @@ def removeGround(range_image):
 
             # tan = torch.atan2(pdist(B, C), pdist(A, C)).item()
 
-            epsilon_a = angle_between(np.array([c_idx, idx_A, -z_A]), np.array([c_idx, 1, 0]))
-            epsilon_b = angle_between(np.array([c_idx, idx_B, -z_B]), np.array([c_idx, 1, 0]))
-            
-            delta_z = np.abs(z_A * np.sin(epsilon_a)- z_B * np.sin(epsilon_b))
-            delta_x = np.abs(z_A * np.cos(epsilon_a)- z_B * np.cos(epsilon_b))
-            
+            epsilon_a = angle_between(
+                np.array([c_idx, idx_A, -z_A]), np.array([c_idx, 1, 0]))
+            epsilon_b = angle_between(
+                np.array([c_idx, idx_B, -z_B]), np.array([c_idx, 1, 0]))
+
+            delta_z = np.abs(z_A * np.sin(epsilon_a) - z_B * np.sin(epsilon_b))
+            delta_x = np.abs(z_A * np.cos(epsilon_a) - z_B * np.cos(epsilon_b))
+
             tan = torch.atan2(delta_z, delta_x).item()
 
             tans.insert(Node(Point(int(idx_A), c_idx), tan))
 
     labels = torch.zeros(range_image.shape)
-   
+
     for c in range(range_image.shape[0]):
         idx = range_image.shape[0] - c - 1
         col_indeces = range_image[idx].nonzero()
@@ -86,6 +94,7 @@ def removeGround(range_image):
     no_ground = torch.abs(labels - 1) * range_image
 
     return no_ground
+
 
 def labelRangeImage(range_image):
     tree = generateQuadTreeFromRangeImage(range_image, True)
@@ -101,8 +110,9 @@ def labelRangeImage(range_image):
             l += 1
 
     image = generateRangeImageFromTree(labels)
-    
+
     return image
+
 
 def labelSegments(n: Node, tree: Quad, labels: Quad, label):
     q = []
@@ -133,6 +143,21 @@ def labelSegments(n: Node, tree: Quad, labels: Quad, label):
         q = q[1:]
 
 
+def find_NNs(segments: torch.Tensor, image):
+
+    points = segments.nonzero()
+    values = segments[segments > 0]
+
+    interpolator = NearestNDInterpolator(points, values)
+
+    X, Y = np.meshgrid(range(segments.shape[0]), range(segments.shape[1]))
+
+    Z = interpolator(X, Y)
+
+    segments = torch.tensor(Z)
+
+    return segments
+    
 def neighborhood(point, tans: Quad):
     radius = 25
 
@@ -141,9 +166,11 @@ def neighborhood(point, tans: Quad):
 
     return neighbors
 
+
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
     return vector / np.linalg.norm(vector)
+
 
 def angle_between(v1, v2):
     """ Returns the angle in radians between vectors 'v1' and 'v2'::

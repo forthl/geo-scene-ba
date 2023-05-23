@@ -5,9 +5,9 @@ from torch.utils.data import Dataset
 
 from nuscenes.nuscenes import NuScenes
 
-from utils.representation import pointcloudOnImage, plotGraph
+from utils.representation import pointcloudOnImage, plotGraph, plotGraphs
 from utils.data_utils import generatePointCloudFromRangeImage, generateQuadTreeFromRangeImage, generateRangeImageFromPointCloud, generateRangeImageFromTree
-from utils.geo_transformations import removeGround, labelRangeImage
+from utils.geo_transformations import removeGround, labelRangeImage, find_NNs
 
 class nuScenes(Dataset):
     def __init__(self, nusc: NuScenes):
@@ -75,13 +75,16 @@ class nuScenes(Dataset):
     def geoPointSegs(self, pointcloud, image):
         pointcloud = torch.round(pointcloud.T).long()
         range_image = generateRangeImageFromPointCloud(pointcloud, image.T.shape[1:])
-        pointcloudOnImage(generatePointCloudFromRangeImage(range_image), image)
+        # pointcloudOnImage(generatePointCloudFromRangeImage(range_image), image)
         range_without_ground = removeGround(range_image)
-        pointcloudOnImage(generatePointCloudFromRangeImage(range_without_ground), image)
+        # pointcloudOnImage(generatePointCloudFromRangeImage(range_without_ground), image)
 
         segments = labelRangeImage(range_without_ground)
         
         pointcloudOnImage(generatePointCloudFromRangeImage(segments), image)
+        
+        interpolation = find_NNs(segments, image)
 
+        plotGraphs(image, interpolation)
 
 
