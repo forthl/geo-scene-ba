@@ -88,21 +88,20 @@ class nuScenes(Dataset):
 
 
 def removeGround(range_image):
-    tans = generateQuadTreeFromRangeImage(range_image)
+    tans = generateQuadTreeFromRangeImage(range_image.T)
     pdist = torch.nn.PairwiseDistance(p=2)
 
     for c in range(range_image.shape[0]):
         c_idx = range_image.shape[0] - c - 1
         col_indeces = range_image[c_idx].nonzero()
 
-        if col_indeces.shape[0] <= 1:
-            continue
-
         for i in range(col_indeces.shape[0]):
             idx = col_indeces.shape[0] - i - 1
+            
             if i == 0:
-                tans.insert(Node(Point(col_indeces[idx].item(), c), 0.))
+                tans.insert(Node(Point(col_indeces[idx].item(), c), 1.5))
                 continue
+
 
             idx_A = col_indeces[idx+1].item()
             idx_B = col_indeces[idx].item()
@@ -116,10 +115,10 @@ def removeGround(range_image):
 
             tan = torch.atan2(pdist(B, C), pdist(A, C)).item()
 
-            tans.insert(Node(Point(int(idx_B), c_idx), tan))
+            tans.insert(Node(Point(int(idx_A), c_idx), tan))
 
     labels = torch.zeros(range_image.shape)
-
+   
     for c in range(range_image.shape[0]):
         idx = range_image.shape[0] - c - 1
         col_indeces = range_image[idx].nonzero()
@@ -136,7 +135,13 @@ def removeGround(range_image):
 
 def labelGround(y, x, labels, tans: Quad):
     q = []
-    q.append(Node(Point(x, y), 0.))
+    p = Point(x, y)
+    n = tans.search(p)
+    
+    if n is None:
+        n = Node(p, 1.5)
+    
+    q.append(n)
 
     while len(q) > 0:
         node: Node = q[0]
@@ -149,14 +154,11 @@ def labelGround(y, x, labels, tans: Quad):
                 continue
             if labels[n.pos.y][n.pos.x] == 1:
                 continue
-            if n.data == 0:
-                q.append(n)
-                continue
-            if node.data == 0.:
+            if node.data == 1.5:
                 q.append(n)
                 continue
                 
-            if np.abs(node.data - n.data) < 0.003:
+            if np.abs(node.data - n.data) < 1.5:
                 q.append(n)
 
         q = q[1:]
@@ -209,7 +211,7 @@ def labelSegments(n: Node, tree: Quad, labels: Quad, label):
 
 
 def neighborhood(point, tans: Quad):
-    radius = 25
+    radius = 10
 
     neighbors = []
     neighbors = tans.findInRadius(point, radius)
