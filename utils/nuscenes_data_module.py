@@ -22,8 +22,8 @@ class nuScenes(Dataset):
     def __getitem__(self, idx):
 
         sample = self.samples[idx]
-        cam_front_data = self.nusc.get(
-            'sample_data', sample['data']['CAM_FRONT_RIGHT'])
+        cam_front_data = self.nusc.get('sample_data', sample['data']['CAM_FRONT'])
+        # cam_front_data = self.nusc.get('sample_data', sample['data']['CAM_FRONT_RIGHT'])
         lidar_data = self.nusc.get('sample_data', sample['data']['LIDAR_TOP'])
 
         pointcloud, colors, image = self.nusc.explorer.map_pointcloud_to_image(
@@ -75,16 +75,16 @@ class nuScenes(Dataset):
     def geoPointSegs(self, pointcloud, image):
         pointcloud = torch.round(pointcloud.T).long()
         range_image = generateRangeImageFromPointCloud(pointcloud, image.T.shape[1:])
-        # pointcloudOnImage(generatePointCloudFromRangeImage(range_image), image)
-        range_without_ground = removeGround(range_image)
-        # pointcloudOnImage(generatePointCloudFromRangeImage(range_without_ground), image)
+        pointcloudOnImage(generatePointCloudFromRangeImage(range_image), image, 'Initial PointCloud')
+        range_without_ground, mask = removeGround(range_image)
+        pointcloudOnImage(generatePointCloudFromRangeImage(range_without_ground), image, 'Ground Removal')
 
         segments = labelRangeImage(range_without_ground)
         
-        pointcloudOnImage(generatePointCloudFromRangeImage(segments), image)
+        pointcloudOnImage(generatePointCloudFromRangeImage(segments), image, 'Segmentation')
         
-        interpolation = find_NNs(segments, image)
+        interpolation = find_NNs(segments, mask)
 
-        plotGraphs(image, interpolation)
+        plotGraph(interpolation, 'densify & pad')
 
 

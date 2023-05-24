@@ -9,37 +9,6 @@ from utils.data_utils import generateQuadTreeFromRangeImage, generateRangeImageF
 from utils.representation import plotGraph
 
 
-def labelGround(y, x, labels, tans: Quad):
-    q = []
-    p = Point(x, y)
-    n = tans.search(p)
-
-    if n is None:
-        n = Node(p, 1.5)
-
-    q.append(n)
-
-    while len(q) > 0:
-        node: Node = q[0]
-
-        labels[node.pos.y][node.pos.x] = 1
-        neighbors = neighborhood(node.pos, tans)
-
-        for n in neighbors:
-            if n in q:
-                continue
-            if labels[n.pos.y][n.pos.x] == 1:
-                continue
-            if node.data == 1.5:
-                q.append(n)
-                continue
-
-            if np.abs(node.data - n.data) < 10:
-                q.append(n)
-
-        q = q[1:]
-
-
 def removeGround(range_image):
     tans = generateQuadTreeFromRangeImage(range_image.T)
     pdist = torch.nn.PairwiseDistance(p=2)
@@ -93,7 +62,37 @@ def removeGround(range_image):
 
     no_ground = torch.abs(labels - 1) * range_image
 
-    return no_ground
+    return no_ground, labels
+
+def labelGround(y, x, labels, tans: Quad):
+    q = []
+    p = Point(x, y)
+    n = tans.search(p)
+
+    if n is None:
+        n = Node(p, 1.5)
+
+    q.append(n)
+
+    while len(q) > 0:
+        node: Node = q[0]
+
+        labels[node.pos.y][node.pos.x] = 1
+        neighbors = neighborhood(node.pos, tans)
+
+        for n in neighbors:
+            if n in q:
+                continue
+            if labels[n.pos.y][n.pos.x] == 1:
+                continue
+            if node.data == 1.5:
+                q.append(n)
+                continue
+
+            if np.abs(node.data - n.data) <  0.0872665:
+                q.append(n)
+
+        q = q[1:]
 
 
 def labelRangeImage(range_image):
@@ -137,16 +136,19 @@ def labelSegments(n: Node, tree: Quad, labels: Quad, label):
                                     [nn.pos.x, nn.pos.y, nn.data]), np.array([n.pos.x, n.pos.y, n.data]))
 
             beta = np.arctan2(d2 * np.sin(phi), d1 - d2 * np.cos(phi))
-            if beta > 0.174533 and nn not in q:
+            if beta > 0.0872665 and nn not in q:
                 q.append(nn)
 
         q = q[1:]
 
 
-def find_NNs(segments: torch.Tensor, image):
+def find_NNs(segments: torch.Tensor, mask: torch.Tensor):
 
-    points = segments.nonzero()
-    values = segments[segments > 0]
+    # points = segments.nonzero()
+    # values = segments[segments > 0]
+
+    points = torch.cat((segments.nonzero(), mask.nonzero()))
+    values = torch.cat((segments[segments > 0], torch.zeros(mask.nonzero().shape[0])))
 
     interpolator = NearestNDInterpolator(points, values)
 

@@ -8,7 +8,7 @@ def plotGraph(image, title = None):
         plt.title(title)
     plt.show()
     
-def plotGraphs(image_a, image_b):
+def plotGraphs(image_a, image_b, title = None):
     fig = plt.figure(figsize=(16, 9))
     # Adds a subplot at the 1st position
     fig.add_subplot(1, 2, 1)
