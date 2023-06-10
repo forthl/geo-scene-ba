@@ -1,5 +1,8 @@
 import numpy as np
 import PIL.Image as Image
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 def normalize_array(arr):
     min_val = np.min(arr)
@@ -47,6 +50,54 @@ def create_point_clouds(masked_depths):
         point_clouds.append(point_cloud)
     return point_clouds
 
+
+def find_optimal_k(data, max_k):
+    distortions = []
+    for k in range(1, max_k + 1):
+        kmeans = KMeans(n_clusters=k, random_state=0, n_init=max_k).fit(data)
+        distortions.append(kmeans.inertia_)
+
+    # Plot the elbow curve
+    plt.plot(range(1, max_k + 1), distortions, marker='o')
+    plt.xlabel('Number of clusters (k)')
+    plt.ylabel('Distortion')
+    plt.title('Elbow Curve')
+    plt.show()
+
+    # Find the optimal k using the elbow point
+    differences = np.diff(distortions)
+    elbow_index = np.argmax(differences) + 1
+    optimal_k = elbow_index + 1
+
+    return optimal_k
+
+
+def kmeans_clustering(data, k):
+    kmeans = KMeans(n_clusters=k, random_state=0).fit(data)
+    labels = kmeans.labels_
+    centroids = kmeans.cluster_centers_
+
+    return labels, centroids
+
+
+def visualize_clusters(data, labels, centroids):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Plot data points
+    ax.scatter(data[:, 0], data[:, 1], data[:, 2], c=labels)
+
+    # Plot centroids
+    ax.scatter(centroids[:, 0], centroids[:, 1], centroids[:, 2],
+               c='red', marker='x', s=200)
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title('K-means Clustering')
+
+    plt.show()
+
 if __name__ == '__main__':
     img_path = "aachen_000000_000019_gtFine_color.png"
     depth_path = "aachen_000000_000019_disparity.png"
@@ -56,5 +107,13 @@ if __name__ == '__main__':
     #save_masks(masked_depths)
     point_clouds = create_point_clouds(masked_depths)
 
-
+    # K-Means Test
+    data = np.transpose(point_clouds[3])
+    max_k = 10  # Maximum value of k to consider
+    optimal_k = find_optimal_k(data, max_k)
+    print(f"Optimal value of k: {optimal_k}")
+    labels, centroids = kmeans_clustering(data, optimal_k)
+    print("Cluster labels:", labels)
+    print("Centroids:", centroids)
+    visualize_clusters(data, labels, centroids)
 
