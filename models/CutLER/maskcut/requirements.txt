@@ -1,7 +1,9 @@
-pip install numpy
-pip install pillow
-pip install torch, torchvision, torchaudio
-pip install scipy
-pip install git+https://github.com/lucasb-eyer/pydensecrf.git
-pip install pycocotools
-pip install tqdm
+numpy
+pillow
+torch, torchvision, torchaudio
+scipy
+git+https://github.com/lucasb-eyer/pydensecrf.git
+pycocotools
+tqdm
+
+data/leftImg8bit/train
