@@ -39,6 +39,13 @@ def save_masks(masked_depths):
         masked_depth = Image.fromarray(d).convert('RGB')
         masked_depth.save("aachen_000000_000019_disparity_mask_" + str(i) + ".jpg")
 
+def create_point_clouds(masked_depths):
+    point_clouds = []
+    for mask in masked_depths:
+        non_zero = np.nonzero(mask)
+        point_cloud = np.array([non_zero[0], non_zero[1], mask[non_zero[0],non_zero[1]]])
+        point_clouds.append(point_cloud)
+    return point_clouds
 
 if __name__ == '__main__':
     img_path = "aachen_000000_000019_gtFine_color.png"
@@ -46,6 +53,8 @@ if __name__ == '__main__':
 
     masks = get_segmentation_masks(img_path)
     masked_depths = get_masked_depth(depth_path, masks)
-    save_masks(masked_depths)
+    #save_masks(masked_depths)
+    point_clouds = create_point_clouds(masked_depths)
+
 
 
