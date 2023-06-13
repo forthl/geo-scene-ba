@@ -1,8 +1,9 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import PIL.Image as Image
-from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
+
 from mpl_toolkits.mplot3d import Axes3D
+from sklearn.cluster import KMeans
 
 def normalize_array(arr):
     min_val = np.min(arr)
@@ -40,7 +41,7 @@ def get_masked_depth(depth_path, masks):
 def save_masks(masked_depths):
     for i, d in enumerate(masked_depths):
         masked_depth = Image.fromarray(d).convert('RGB')
-        masked_depth.save("aachen_000000_000019_disparity_mask_" + str(i) + ".jpg")
+        masked_depth.save("./aachen_000000_000019_disparity_mask_" + str(i) + ".jpg")
 
 def create_point_clouds(masked_depths):
     point_clouds = []

@@ -18,7 +18,7 @@ from skimage.segmentation import mark_boundaries
 from sklearn.decomposition import PCA
 
 from src.data.stego_data_utils import ContrastiveSegDataset
-from src.modules import ContrastiveCRFLoss
+from src.modules.stego_modules  import ContrastiveCRFLoss
 from src.utils.stego_utils import *
 
 def norm(t):

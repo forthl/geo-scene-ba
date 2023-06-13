@@ -15,7 +15,7 @@ from omegaconf import DictConfig, OmegaConf
 from os.path import join
 
 from src.utils.stego_utils import get_transform, load_model, prep_for_plot, remove_axes, prep_args
-from src.modules import FeaturePyramidNet, DinoFeaturizer, sample
+from src.modules.stego_modules  import FeaturePyramidNet, DinoFeaturizer, sample
 from src.data.stego_data_utils import ContrastiveSegDataset
 
 

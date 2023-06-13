@@ -17,7 +17,7 @@ from torchvision.transforms import ToTensor
 from train_segmentation import get_class_labels
 
 from src.data.stego_data_utils import *
-from src.modules import *
+from src.modules.stego_modules  import *
 
 
 

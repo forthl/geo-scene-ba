@@ -9,7 +9,7 @@ from torchvision.transforms.functional import five_crop, _get_image_size, crop
 from tqdm import tqdm
 
 from src.data.stego_data_utils import ContrastiveSegDataset
-from src.modules import *
+from src.modules.stego_modules import *
 
 def _random_crops(img, size, seed, n):
     """Crop the given image into four corners and the central crop.

@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from train_segmentation import LitUnsupervisedSegmenter, prep_for_plot, get_class_labels
-from src.modules import *
+from src.modules.stego_modules import *
 from src.data.stego_data_utils import *
 
 torch.multiprocessing.set_sharing_strategy('file_system')

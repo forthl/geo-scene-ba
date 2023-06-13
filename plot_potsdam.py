@@ -6,7 +6,7 @@ from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 
 from src.data.stego_data_utils import *
-from src.modules import *
+from src.modules.stego_modules  import *
 from train_segmentation import LitUnsupervisedSegmenter
 
 

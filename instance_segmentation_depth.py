@@ -16,7 +16,7 @@ import src.utils.semantic_to_binary_mask as Seg2BinMask
 from train_segmentation import LitUnsupervisedSegmenter
 from src.crf import  dense_crf
 from data.depth_dataset import ContrastiveDepthDataset
-from src.modules import *
+from src.modules.stego_modules import *
 
 
 torch.multiprocessing.set_sharing_strategy('file_system')

@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from src.crf import dense_crf
-from src.modules import *
+from src.modules.stego_modules import *
 from train_segmentation import LitUnsupervisedSegmenter
 
 torch.multiprocessing.set_sharing_strategy('file_system')

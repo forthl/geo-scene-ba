@@ -11,7 +11,7 @@ from os.path import join
 from tqdm import tqdm
 from lightning_lite.utilities.seed import seed_everything
 
-from src.modules import *
+from src.modules.stego_modules  import *
 
 
 def get_feats(model, loader):
@@ -50,7 +50,7 @@ def my_app(cfg: DictConfig) -> None:
     n_batches = 16
 
     if cfg.arch == "dino":
-        from modules import DinoFeaturizer, LambdaLayer
+        from src.modules.stego_modules import DinoFeaturizer, LambdaLayer
         no_ap_model = torch.nn.Sequential(
             DinoFeaturizer(20, cfg),  # dim doesent matter
             LambdaLayer(lambda p: p[0]),

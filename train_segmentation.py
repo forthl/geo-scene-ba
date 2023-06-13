@@ -15,7 +15,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader
 
 from src.data.stego_data_utils import *
-from src.modules import *
+from src.modules.stego_modules import *
 from src.utils.stego_utils import *
 
 
