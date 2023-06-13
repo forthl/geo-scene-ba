@@ -1,8 +1,9 @@
 import torch
 
-from utils import *
 import torch.nn.functional as F
-import dino.vision_transformer as vits
+
+from src.utils.stego_utils import *
+import src.dino.vision_transformer as vits
 
 
 class LambdaLayer(nn.Module):

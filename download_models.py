@@ -1,15 +1,16 @@
-from os.path import join, exists
-import wget
 import os
+import wget
 
-models_dir = join("..", "models")
+from os.path import join, exists
+
+models_dir = join("checkpoints", "models")
 os.makedirs(models_dir, exist_ok=True)
 model_url_root = "https://marhamilresearch4.blob.core.windows.net/stego-public/models/models/"
 model_names = ["moco_v2_800ep_pretrain.pth.tar",
                "model_epoch_0720_iter_085000.pth",
                "picie.pkl"]
 
-saved_models_dir = join("..", "saved_models")
+saved_models_dir = join("checkpoints", "saved_models")
 os.makedirs(saved_models_dir, exist_ok=True)
 saved_model_url_root = "https://marhamilresearch4.blob.core.windows.net/stego-public/saved_models/"
 saved_model_names = ["cityscapes_vit_base_1.ckpt",

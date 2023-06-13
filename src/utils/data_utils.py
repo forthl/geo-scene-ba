@@ -1,6 +1,6 @@
 import torch
 
-from utils.quad_tree import Point, Node, Quad
+from src.utils.quad_tree import Point, Node, Quad
 
 
 def generateRangeImageFromPointCloud(pointcloud, shape):

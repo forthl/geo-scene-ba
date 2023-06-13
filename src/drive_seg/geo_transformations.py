@@ -3,10 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy.interpolate import NearestNDInterpolator
-from utils.quad_tree import Point, Node, Quad
-from utils.data_utils import generateQuadTreeFromRangeImage, generateRangeImageFromTree
+from src.utils.quad_tree import Point, Node, Quad
+from src.utils.data_utils import generateQuadTreeFromRangeImage, generateRangeImageFromTree
 
-from utils.representation import plotGraph
+from src.utils.representation import plotGraph
 
 
 def removeGround(range_image):

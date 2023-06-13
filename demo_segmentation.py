@@ -1,13 +1,16 @@
-from modules import *
 import hydra
-import torch.multiprocessing
-from PIL import Image
-from crf import dense_crf
-from omegaconf import DictConfig, OmegaConf
-from torch.utils.data import DataLoader, Dataset
-from train_segmentation import LitUnsupervisedSegmenter
-from tqdm import tqdm
 import random
+import torch.multiprocessing
+
+from omegaconf import DictConfig, OmegaConf
+from PIL import Image
+from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
+
+from src.crf import dense_crf
+from src.modules import *
+from train_segmentation import LitUnsupervisedSegmenter
+
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 

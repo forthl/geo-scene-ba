@@ -1,17 +1,17 @@
 import os
 import random
-from os.path import join
+import torch.multiprocessing
 
 import numpy as np
-import torch.multiprocessing
+
+from os.path import join
 from PIL import Image
 from scipy.io import loadmat
-from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms as T
 from torchvision.datasets.cityscapes import Cityscapes
 from torchvision.transforms.functional import to_pil_image
 from tqdm import tqdm
-from torchvision import transforms as T
 
 def bit_get(val, idx):
     """Gets the bit value.

@@ -5,9 +5,9 @@ from torch.utils.data import Dataset
 
 from nuscenes.nuscenes import NuScenes
 
-from utils.representation import pointcloudOnImage, plotGraph, plotGraphs
-from utils.data_utils import generatePointCloudFromRangeImage, generateQuadTreeFromRangeImage, generateRangeImageFromPointCloud, generateRangeImageFromTree
-from utils.geo_transformations import removeGround, labelRangeImage, find_NNs
+from src.utils.representation import pointcloudOnImage, plotGraph, plotGraphs
+from src.utils.data_utils import generatePointCloudFromRangeImage, generateQuadTreeFromRangeImage, generateRangeImageFromPointCloud, generateRangeImageFromTree
+from src.drive_seg.geo_transformations import removeGround, labelRangeImage, find_NNs
 
 class nuScenes(Dataset):
     def __init__(self, nusc: NuScenes):

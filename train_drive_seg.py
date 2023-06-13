@@ -2,10 +2,11 @@ import lightning.pytorch as pl
 import torch
 import torch.utils.data as data
 
-from utils.nuscenes_data_module import nuScenes
 from nuscenes.nuscenes import NuScenes
-from models.drive_and_seg import DriveAndSeg
-from models.test_pytorch import LitAutoEncoder, Encoder, Decoder
+
+from src.data.nuscenes_data_module import nuScenes
+from src.models.drive_and_seg import DriveAndSeg
+from src.models.test_pytorch import LitAutoEncoder, Encoder, Decoder
 
 def main():
     

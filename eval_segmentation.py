@@ -1,18 +1,18 @@
-import sys
+import hydra
+import torch.multiprocessing
 
-print (sys.path)
-from modules import *
-from data import *
+import seaborn as sns
+
 from collections import defaultdict
 from multiprocessing import Pool
-import hydra
-import seaborn as sns
-import torch.multiprocessing
-from crf import dense_crf
 from omegaconf import DictConfig, OmegaConf
+from src.crf import dense_crf
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
 from train_segmentation import LitUnsupervisedSegmenter, prep_for_plot, get_class_labels
+from src.modules import *
+from src.data.stego_data_utils import *
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 

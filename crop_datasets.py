@@ -1,15 +1,15 @@
-from modules import *
-import os
-from data import ContrastiveSegDataset
 import hydra
+import os
 import torch
+
+from lightning_lite.utilities.seed import seed_everything
 from omegaconf import DictConfig, OmegaConf
-from pytorch_lightning.utilities.seed import seed_everything
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms.functional import five_crop, _get_image_size, crop
 from tqdm import tqdm
-from torch.utils.data import Dataset
 
+from src.data.stego_data_utils import ContrastiveSegDataset
+from src.modules import *
 
 def _random_crops(img, size, seed, n):
     """Crop the given image into four corners and the central crop.

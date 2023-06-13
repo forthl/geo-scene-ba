@@ -1,24 +1,22 @@
-import sys
+import hydra
 import os
-
-
+import random
+import torch.multiprocessing
 
 from multiprocessing import Pool
-from depth_dataset import ContrastiveDepthDataset
-from eval_segmentation import batched_crf
-from modules import *
-import hydra
-import torch.multiprocessing
-from PIL import Image
-from src.crf import  dense_crf
 from omegaconf import DictConfig, OmegaConf
+from PIL import Image
 from torch.utils.data import DataLoader, Dataset
-import json_to_binary_mask as Json2BinMask
-from train_segmentation import LitUnsupervisedSegmenter
 from tqdm import tqdm
-import random
-import semantic_to_binary_mask as Seg2BinMask
 
+import src.utils.semantic_to_binary_mask as Seg2BinMask
+import src.utils.json_to_binary_mask as Json2BinMask
+
+from src.crf import dense_crf
+from src.data.stego_data_utils import ContrastiveSegDataset
+from src.eval_segmentation import batched_crf
+from src.modules import *
+from train_segmentation import LitUnsupervisedSegmenter
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 
@@ -57,7 +55,7 @@ def my_app(cfg: DictConfig) -> None:
         print(OmegaConf.to_yaml(model.cfg))
 
     loader_crop = "center"
-    test_dataset = ContrastiveDepthDataset(
+    test_dataset = ContrastiveSegDataset(
         pytorch_data_dir=pytorch_data_dir,
         dataset_name=cfg.experiment_name,
         crop_type=None,
@@ -87,7 +85,6 @@ def my_app(cfg: DictConfig) -> None:
                 img = batch["img"].cuda()
                 label = batch["label"].cuda()
                 polygons = batch["polygons"]
-                depth = batch["depth"]
 
                 feats, code1 = par_model(img)
                 feats, code2 = par_model(img.flip(dims=[3]))
