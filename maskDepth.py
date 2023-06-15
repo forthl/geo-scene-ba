@@ -2,22 +2,20 @@ import numpy as np
 import PIL.Image as Image
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
-from kneed import KneeLocator
 from mpl_toolkits.mplot3d import Axes3D
-import random
+from kneed import KneeLocator
+from scipy.spatial.distance import cdist
 
 def normalize_array(arr):
     min_val = np.min(arr)
     max_val = np.max(arr)
-    if max_val==min_val:
-        return np.zeros(arr.shape)
     normalized_arr = (arr - min_val) / (max_val - min_val) * 255
     return normalized_arr
 
 # get masks from segmentations
-def get_segmentation_masks(img):
+def get_segmentation_masks(img_path):
     masks = []
-    I = img.convert('L')
+    I = Image.open(img_path).convert('L')
     I = np.asarray(I)
     for c in np.unique(I):
         segmentation = I == c
@@ -26,8 +24,9 @@ def get_segmentation_masks(img):
     return masks
 
 # mask depth image with segmentations
-def get_masked_depth(depth_img, masks):
-    depth_array = np.asarray(depth_img)
+def get_masked_depth(depth_path, masks):
+    D = Image.open(depth_path)
+    depth_array = np.asarray(D)
     depth_array = normalize_array(depth_array)
     masked_depths = []
     for mask in masks:
@@ -53,54 +52,61 @@ def create_point_clouds(masked_depths):
         point_clouds.append(point_cloud)
     return point_clouds
 
-
-def find_optimal_k(data, max_k):
+def optimal_k_elbow(data, max_k):
     distortions = []
-    for k in range(1, max_k+1):
-        kmeans = KMeans(n_clusters=k, random_state=0, n_init=max_k).fit(data)
+    for k in range(1, max_k + 1):
+        kmeans = KMeans(n_clusters=k, init='k-means++', random_state=0, n_init='auto').fit(data)
         distortions.append(kmeans.inertia_)
 
-    # Plot the elbow curve
-    plt.plot(range(1, max_k + 1), distortions, marker='o')
-    plt.xlabel('Number of clusters (k)')
-    plt.ylabel('Distortion')
-    plt.title('Elbow Curve')
-    #plt.show()
-
-    kn = KneeLocator(range(1,max_k+1),distortions, curve='convex', direction= 'decreasing')
-    # Find the optimal k using the elbow point
+    # Find the optimal k
+    kn = KneeLocator(range(1, max_k + 1), distortions, curve='convex', direction='decreasing')
     return kn.knee
 
+def optimal_k_bic(data, max_k):
+    #TODO
+    bics = []
+    for k in range(2, max_k + 1):
+        kmeans = KMeans(n_clusters=k)
+        kmeans.fit(data)
+        centers = kmeans.cluster_centers_
 
-def kmeans_clustering(data, k, current_num_instances ):
-    kmeans = KMeans(n_clusters=k, random_state=0).fit(data)
-    instance_mask=np.zeros((320,320))#resolution is hard coded at (320,320)
-    for index, point in enumerate(data):
-        instance_mask[int(point[0]),int(point[1])]=kmeans.labels_[index]+current_num_instances
+        # Calculate the BIC score
+        distortion = sum(np.min(cdist(data, centers, 'euclidean'), axis=1))
+        bic = distortion + (k * np.log(data.shape[0]) / 2)
+        bics.append(bic)
 
-    colorMask = grayscale_to_random_color(instance_mask, k+current_num_instances).astype(np.uint8)
-    #Image.fromarray(colorMask).convert('RGB').show()
+        # Find the index of the minimum BIC score
+    optimal_k = np.argmin(bics) + 2  # Adding 2 to account for starting at k=2
+    return optimal_k
+
+def optimal_k_ml(data, max_k):
+    #TODO
+    return 1
+
+def optimal_k_vrc(data, max_k):
+    #TODO
+    return 3
+
+def find_optimal_k(data, max_k, optimal_k_method='e'):
+
+    optimal_k = 0
+    if optimal_k_method == 'e':
+        optimal_k = optimal_k_elbow(data, max_k)
+    elif optimal_k_method == 'bic':
+        optimal_k = optimal_k_bic(data, max_k)
+    elif optimal_k_method == 'ml':
+        optimal_k = optimal_k_ml(data, max_k)
+    elif optimal_k_method == 'vrc':
+        optimal_k = optimal_k_vrc(data, max_k)
+
+    return optimal_k
+
+
+def kmeans_clustering(data, k):
+    kmeans = KMeans(n_clusters=k, random_state=0, n_init='auto').fit(data)
     labels = kmeans.labels_
     centroids = kmeans.cluster_centers_
-
-    return labels, centroids, instance_mask
-
-
-
-def grayscale_to_random_color(grayscale,num_colors):
-    color_list=[]
-    for i in range(num_colors):
-        color = list(np.random.choice(range(256), size=3))
-        color_list.append(color)
-    result = np.zeros((320,320,3))
-    for i in  range(319):
-        for j in range(319):
-            if int(grayscale[i,j])==0:
-                result[i, j] = (0,0,0)
-            else:
-                result[i,j]=color_list[int(grayscale[i,j])]
-    return result
-
+    return labels, centroids
 
 
 def visualize_clusters(data, labels, centroids):
@@ -121,23 +127,38 @@ def visualize_clusters(data, labels, centroids):
 
     plt.show()
 
+def find_clusters(point_cloud, max_k, optimal_k_method):
+    data = np.transpose(point_cloud)
+    optimal_k = find_optimal_k(data, max_k, optimal_k_method)
+    print(f"Optimal k: {optimal_k}")
+    labels, centroids = kmeans_clustering(data, optimal_k)
+    return labels, centroids, data
+
+
+def distance(x, y, centroids):
+    for i, centroid in enumerate(centroids):
+        dist = np.linalg.norm(np.array([x, y]) - np.array([centroid[0], centroid[1]]))
+    return 0
+
 if __name__ == '__main__':
-    img_path = "aachen_000000_000019_gtFine_color.png"
-    depth_path = "aachen_000000_000019_disparity.png"
+    img_path = "tmp_data/aachen_000000_000019_gtFine_color.png"
+    depth_path = "tmp_data/aachen_000000_000019_disparity.png"
 
     masks = get_segmentation_masks(img_path)
     masked_depths = get_masked_depth(depth_path, masks)
     #save_masks(masked_depths)
     point_clouds = create_point_clouds(masked_depths)
 
-    # K-Means Test
-    data = np.transpose(point_clouds[3])
-    max_k = 10  # Maximum value of k to consider
-    optimal_k = find_optimal_k(data, max_k)
-    print(f"Optimal value of k: {optimal_k}")
-    labels, centroids = kmeans_clustering(data, optimal_k)
-    print("Cluster labels:", labels)
-    print("Centroids:", centroids)
-    visualize_clusters(data, labels, centroids)
 
+    mask = masks[1]
+    point_cloud = point_clouds[1]
+    labels, centroids, data = find_clusters(point_cloud, 20, optimal_k_method='e')
+
+    for j in range(len(centroids)):
+        tmp = np.zeros(mask.shape)
+        for i in range(len(data)):
+            if labels[i] == j:
+                tmp[int(data[i][0]), int(data[i][1])] = 255
+        tmp = Image.fromarray(tmp).convert('RGB')
+        tmp.show()
 
