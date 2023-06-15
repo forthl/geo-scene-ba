@@ -1,25 +1,31 @@
-import hydra
+import sys
 import os
-import random
-import torch.multiprocessing
+
+
 
 from multiprocessing import Pool
+
+import numpy as np
+
+from depth_dataset import ContrastiveDepthDataset
 from eval_segmentation import batched_crf
+from modules import *
+import hydra
+import torch.multiprocessing
 from PIL import Image
+from src.crf import  dense_crf
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Dataset
-from tqdm import tqdm
-
-import src.utils.json_to_binary_mask as Json2BinMask
-import src.utils.semantic_to_binary_mask as Seg2BinMask
-
+import maskDepth as maskD
 from train_segmentation import LitUnsupervisedSegmenter
-from src.crf import  dense_crf
-from data.depth_dataset import ContrastiveDepthDataset
-from src.modules.stego_modules import *
-
+from tqdm import tqdm
+import random
+import semantic_to_binary_mask as Seg2BinMask
+import torchvision
+import torchvision.transforms as T
 
 torch.multiprocessing.set_sharing_strategy('file_system')
+
 
 class UnlabeledImageFolder(Dataset):
     def __init__(self, root, transform):
@@ -84,8 +90,23 @@ def my_app(cfg: DictConfig) -> None:
             with torch.no_grad():
                 img = batch["img"].cuda()
                 label = batch["label"].cuda()
-                polygons = batch["polygons"]
                 depth = batch["depth"]
+
+
+                trans_unormalize = T.Compose([ T.Normalize(mean = [ 0., 0., 0. ],
+                                                     std = [ 1/0.229, 1/0.224, 1/0.225 ]),
+                                T.Normalize(mean = [ -0.485, -0.456, -0.406 ],
+                                                     std = [ 1., 1., 1. ]),
+                               T.ToPILImage()])
+
+                transToImg= T.ToPILImage()
+
+                depth_img = transToImg(depth)
+                #label_img = transToImg(label[0].cpu())
+                #real_img =trans_unormalize(img[0].cpu())
+                #depth_img.show()
+                #label_img.show()
+                #real_img.show()
 
                 feats, code1 = par_model(img)
                 feats, code2 = par_model(img.flip(dims=[3]))
@@ -109,20 +130,54 @@ def my_app(cfg: DictConfig) -> None:
                 plotted = model.label_cmap[model.test_cluster_metrics.map_clusters(cluster_crf.cpu())].astype(np.uint8)
 
                 Semantic2BinMasks = Seg2BinMask.getMasks(plotted[0], cfg.InstanceClasses)
-                InstanceMasks = Json2BinMask.getBinaryMasks(polygons, cfg.InstanceClasses)
 
-                for className in cfg.InstanceClasses:
-                    semanticMask = Semantic2BinMasks.get(className)
-                    instances = InstanceMasks[className]
-                    for ins in instances:
-                        IoU = Json2BinMask.iou(ins, semanticMask)
-                        IoU_dict[className][0] += IoU
-                        IoU_dict[className][1] += 1
-    f = open("../results/predictions/IoU.txt", "a")
-    for className in cfg.InstanceClasses:
-        f.write(className + "// IoU_sum: " + str(IoU_dict[className][0]) + "   " + "IoU_instance_count: " + str(
-            IoU_dict[className][1]) + "\n")
-    f.close()
+                plotted_img = Image.fromarray(plotted[0])
+                plotted_img.show()
+
+                semantic_mask_car = [transToImg(Semantic2BinMasks.get('car'))]
+
+                masks = maskD.get_segmentation_masks(plotted_img)
+
+                masked_depths = maskD.get_masked_depth(depth_img, masks)
+                # save_masks(masked_depths)
+                point_clouds = maskD.create_point_clouds(masked_depths)
+
+
+                result = np.zeros((320,320))
+                current_num_instances=0
+                # K-Means Test
+                for point_cloud in point_clouds:
+                    data = np.transpose(point_cloud)
+                    max_k = 10  # Maximum value of k to consider
+                    if point_cloud.shape[1]==0:  #check if its an empty point cloud. Look into this bug later
+                        continue
+                    optimal_k = maskD.find_optimal_k(data, min(max_k,point_cloud.shape[1]))
+                    #print(f"Optimal value of k: {optimal_k}")
+                    labels, centroids, instance_mask = maskD.kmeans_clustering(data, optimal_k,current_num_instances)
+                    result=np.add(result, instance_mask)
+                    current_num_instances+=optimal_k
+                    #print("Cluster labels:", labels)
+                    #print("Centroids:", centroids)
+                    #maskD.visualize_clusters(data, labels, centroids)
+                    #print('a')
+                result=grayscale_to_random_color(result,current_num_instances).astype(np.uint8)
+                Image.fromarray(result).convert('RGB').show()
+                print(result)
+
+
+
+
+def grayscale_to_random_color(grayscale,num_colors):
+    color_list=[]
+    for i in range(num_colors):
+        color = list(np.random.choice(range(256), size=3))
+        color_list.append(color)
+    result = np.zeros((320,320,3))
+    for i in  range(319):
+        for j in range(319):
+            result[i,j]=color_list[int(grayscale[i,j])]
+    return result
+
 
 
 def get_trans(res, is_label, crop_type):
@@ -142,6 +197,28 @@ def get_trans(res, is_label, crop_type):
         return T.Compose([T.Resize(res, Image.NEAREST),
                           cropper])
 
+
+
+
+def get_transform1(res, is_label, crop_type):
+    if crop_type == "center":
+        cropper = T.CenterCrop(res)
+    elif crop_type == "random":
+        cropper = T.RandomCrop(res)
+    elif crop_type is None:
+        cropper = T.Lambda(lambda x: x)
+        res = (res, res)
+    else:
+        raise ValueError("Unknown Cropper {}".format(crop_type))
+    if is_label:
+        return T.Compose([T.Resize(res, Image.NEAREST),
+                          cropper,
+                          ToTargetTensor()])
+    else:
+        return T.Compose([T.Resize(res, Image.NEAREST),
+                          cropper,
+                          T.ToTensor(),
+                          normalize])
 
 if __name__ == "__main__":
     prep_args()
