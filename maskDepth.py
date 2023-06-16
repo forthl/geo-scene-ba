@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from kneed import KneeLocator
 from scipy.spatial.distance import cdist
+from sklearn.mixture import GaussianMixture
 
 def normalize_array(arr):
     min_val = np.min(arr)
@@ -63,21 +64,13 @@ def optimal_k_elbow(data, max_k):
     return kn.knee
 
 def optimal_k_bic(data, max_k):
-    #TODO
     bics = []
-    for k in range(2, max_k + 1):
-        kmeans = KMeans(n_clusters=k)
-        kmeans.fit(data)
-        centers = kmeans.cluster_centers_
+    for k in range(1, max_k):
+        gmm = GaussianMixture(n_components=k, init_params='kmeans')
+        gmm.fit(data)
+        bics.append(gmm.bic(data))
 
-        # Calculate the BIC score
-        distortion = sum(np.min(cdist(data, centers, 'euclidean'), axis=1))
-        bic = distortion + (k * np.log(data.shape[0]) / 2)
-        bics.append(bic)
-
-        # Find the index of the minimum BIC score
-    optimal_k = np.argmin(bics) + 2  # Adding 2 to account for starting at k=2
-    return optimal_k
+    return np.argmin(bics)
 
 def optimal_k_ml(data, max_k):
     #TODO
@@ -152,7 +145,7 @@ if __name__ == '__main__':
 
     mask = masks[1]
     point_cloud = point_clouds[1]
-    labels, centroids, data = find_clusters(point_cloud, 20, optimal_k_method='e')
+    labels, centroids, data = find_clusters(point_cloud, 20, optimal_k_method='bic')
 
     for j in range(len(centroids)):
         tmp = np.zeros(mask.shape)
@@ -160,5 +153,5 @@ if __name__ == '__main__':
             if labels[i] == j:
                 tmp[int(data[i][0]), int(data[i][1])] = 255
         tmp = Image.fromarray(tmp).convert('RGB')
-        tmp.show()
+        #tmp.show()
 
