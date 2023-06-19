@@ -1,6 +1,6 @@
 output_root: '../'
 pytorch_data_dir: 'dataset'
-experiment_name: "Cityscapes"
+experiment_name: "cityscapes"
 res: 320
 batch_size: 1
 num_workers: 0

@@ -14,7 +14,7 @@ from torchvision.transforms.functional import to_pil_image
 from tqdm import tqdm
 
 from src.data.stego_data_utils import ContrastiveSegDataset
-from src.data.stego_data_utils.cityscapes_dataset import Cityscapes_Depth
+from src.data.cityscapes_dataset import Cityscapes_Depth
 
 
 class CityscapesDepth(Dataset):
@@ -52,7 +52,8 @@ class CityscapesDepth(Dataset):
             random.seed(seed)
             torch.manual_seed(seed)
             image = self.transform(image)
-            depth = self.transform(depth)
+            depth_trans = T.Compose([T.Resize((320,320), Image.NEAREST),T.CenterCrop(320)])
+            depth = numpy.array(depth_trans(depth))
             random.seed(seed)
             torch.manual_seed(seed)
             target = self.target_transform(target)
@@ -67,6 +68,7 @@ class CityscapesDepth(Dataset):
 
     def __len__(self):
         return len(self.inner_loader)
+
 
 
 
@@ -100,6 +102,8 @@ class ContrastiveDepthDataset(Dataset):
         self.extra_transform = extra_transform
 
 
+        print(dataset_name)
+
         if dataset_name == "cityscapes" and crop_type is None:
             self.n_classes = 27
             dataset_class = CityscapesDepth
@@ -116,7 +120,7 @@ class ContrastiveDepthDataset(Dataset):
             root=pytorch_data_dir,
             image_set=self.image_set,
             transform=transform,
-            target_transform=target_transform, **extra_args)
+            target_transform=target_transform)
 
         if model_type_override is not None:
             model_type = model_type_override

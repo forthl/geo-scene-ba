@@ -1,12 +1,13 @@
 import json
 import os
-from collections import namedtuple
 import zipfile
+
+from collections import namedtuple
+from PIL import Image
+from torchvision.datasets import VisionDataset
+from torchvision.datasets.utils import verify_str_arg, iterable_to_str, extract_archive
 from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 
-from PIL import Image
-from torchvision.datasets import VisionDataset, Cityscapes
-from torchvision.datasets.utils import verify_str_arg, iterable_to_str, extract_archive
 
 
 class Cityscapes_Depth(VisionDataset):

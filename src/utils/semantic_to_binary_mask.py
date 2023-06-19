@@ -44,7 +44,7 @@ def getMasks(mask, InstanceClasses):
     for key in labels:
         if key in InstanceClasses:
             x0 = np.where(mask == labels.get(key), 1, 0).sum(axis=2)
-            x = np.where(x0 == 3, 255, 0)
+            x = np.where(x0 == 3, 255, 0).astype(np.uint8)
             binary_masks[key] = x
 
     return binary_masks

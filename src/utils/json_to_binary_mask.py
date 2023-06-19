@@ -57,4 +57,3 @@ def iou(mask1, mask2):
         return 0.0
     union = np.logical_or(mask1, mask2).sum()
     return intersection / union
-

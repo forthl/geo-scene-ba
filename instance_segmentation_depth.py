@@ -1,28 +1,25 @@
-import sys
+import hydra
 import os
+import random
+import torch.multiprocessing
 
-
+import maskDepth as maskD
+import numpy as np
+import torchvision.transforms as T
 
 from multiprocessing import Pool
-
-import numpy as np
-
-from depth_dataset import ContrastiveDepthDataset
-from eval_segmentation import batched_crf
-from modules import *
-import hydra
-import torch.multiprocessing
-from PIL import Image
-from src.crf import  dense_crf
 from omegaconf import DictConfig, OmegaConf
+from PIL import Image
 from torch.utils.data import DataLoader, Dataset
-import maskDepth as maskD
-from train_segmentation import LitUnsupervisedSegmenter
 from tqdm import tqdm
-import random
-import semantic_to_binary_mask as Seg2BinMask
-import torchvision
-import torchvision.transforms as T
+
+
+from eval_segmentation import batched_crf
+from src.crf import  dense_crf
+from src.data.depth_dataset import ContrastiveDepthDataset
+from src.modules.stego_modules import *
+import src.utils.semantic_to_binary_mask as Seg2BinMask
+from train_segmentation import LitUnsupervisedSegmenter
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 
@@ -165,8 +162,6 @@ def my_app(cfg: DictConfig) -> None:
                 print(result)
 
 
-
-
 def grayscale_to_random_color(grayscale,num_colors):
     color_list=[]
     for i in range(num_colors):
@@ -196,8 +191,6 @@ def get_trans(res, is_label, crop_type):
     else:
         return T.Compose([T.Resize(res, Image.NEAREST),
                           cropper])
-
-
 
 
 def get_transform1(res, is_label, crop_type):

@@ -1,64 +1,15 @@
 import json
 import os
+
 from collections import namedtuple
-import zipfile
-from typing import Any, Callable, Dict, List, Optional, Union, Tuple
-
-
 from PIL import Image
 from PIL.Image import Image
 from torchvision.datasets import VisionDataset, Cityscapes
 from torchvision.datasets.utils import verify_str_arg, iterable_to_str, extract_archive
+from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 
 
-class Cityscapes_Depth(VisionDataset):
-    """`Cityscapes <http://www.cityscapes-dataset.com/>`_ Dataset.
-
-    Args:
-        root (string): Root directory of dataset where directory ``leftImg8bit``
-            and ``gtFine`` or ``gtCoarse`` are located.
-        split (string, optional): The image split to use, ``train``, ``test`` or ``val`` if mode="fine"
-            otherwise ``train``, ``train_extra`` or ``val``
-        mode (string, optional): The quality mode to use, ``fine`` or ``coarse``
-        target_type (string or list, optional): Type of target to use, ``instance``, ``semantic``, ``polygon``
-            or ``color``. Can also be a list to output a tuple with all specified target types.
-        transform (callable, optional): A function/transform that takes in a PIL image
-            and returns a transformed version. E.g, ``transforms.RandomCrop``
-        target_transform (callable, optional): A function/transform that takes in the
-            target and transforms it.
-        transforms (callable, optional): A function/transform that takes input sample and its target as entry
-            and returns a transformed version.
-
-    Examples:
-
-        Get semantic segmentation target
-
-        .. code-block:: python
-
-            dataset = Cityscapes('./data/cityscapes', split='train', mode='fine',
-                                 target_type='semantic')
-
-            img, smnt = dataset[0]
-
-        Get multiple targets
-
-        .. code-block:: python
-
-            dataset = Cityscapes('./data/cityscapes', split='train', mode='fine',
-                                 target_type=['instance', 'color', 'polygon'])
-
-            img, (inst, col, poly) = dataset[0]
-
-        Validate on the "coarse" set
-
-        .. code-block:: python
-
-            dataset = Cityscapes('./data/cityscapes', split='val', mode='coarse',
-                                 target_type='semantic')
-
-            img, smnt = dataset[0]
-    """
-
+class Cityscapes_Depth(Cityscapes):
     # Based on https://github.com/mcordts/cityscapesScripts
     CityscapesClass = namedtuple('CityscapesClass', ['name', 'id', 'train_id', 'category', 'category_id',
                                                      'has_instances', 'ignore_in_eval', 'color'])

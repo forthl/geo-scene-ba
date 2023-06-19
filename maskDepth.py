@@ -43,13 +43,16 @@ def get_masked_depth(depth_path, masks):
 def save_masks(masked_depths):
     for i, d in enumerate(masked_depths):
         masked_depth = Image.fromarray(d).convert('RGB')
-        masked_depth.save("aachen_000000_000019_disparity_mask_" + str(i) + ".jpg")
+        masked_depth.save(
+            "aachen_000000_000019_disparity_mask_" + str(i) + ".jpg")
+
 
 def create_point_clouds(masked_depths):
     point_clouds = []
     for mask in masked_depths:
         non_zero = np.nonzero(mask)
-        point_cloud = np.array([non_zero[0], non_zero[1], mask[non_zero[0],non_zero[1]]])
+        point_cloud = np.array(
+            [non_zero[0], non_zero[1], mask[non_zero[0], non_zero[1]]])
         point_clouds.append(point_cloud)
     return point_clouds
 
@@ -101,7 +104,6 @@ def kmeans_clustering(data, k):
     centroids = kmeans.cluster_centers_
     return labels, centroids
 
-
 def visualize_clusters(data, labels, centroids):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -139,7 +141,7 @@ if __name__ == '__main__':
 
     masks = get_segmentation_masks(img_path)
     masked_depths = get_masked_depth(depth_path, masks)
-    #save_masks(masked_depths)
+    # save_masks(masked_depths)
     point_clouds = create_point_clouds(masked_depths)
 
 
