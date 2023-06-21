@@ -3,7 +3,7 @@ import os
 import random
 import torch.multiprocessing
 
-import maskDepth as maskD
+import maskDepth2 as maskD
 import numpy as np
 import torchvision.transforms as T
 
@@ -140,7 +140,7 @@ def my_app(cfg: DictConfig) -> None:
                 point_clouds = maskD.create_point_clouds(masked_depths)
 
 
-                result = np.zeros((320,320))
+                 result = np.zeros((320,320))
                 current_num_instances=0
                 # K-Means Test
                 for point_cloud in point_clouds:
@@ -148,9 +148,10 @@ def my_app(cfg: DictConfig) -> None:
                     max_k = 10  # Maximum value of k to consider
                     if point_cloud.shape[1]==0:  #check if its an empty point cloud. Look into this bug later
                         continue
-                    optimal_k = maskD.find_optimal_k(data, min(max_k,point_cloud.shape[1]))
+                    optimal_k = maskD.find_optimal_k(data, min(max_k,point_cloud.shape[1]),'vrc')
                     #print(f"Optimal value of k: {optimal_k}")
-                    labels, centroids, instance_mask = maskD.kmeans_clustering(data, optimal_k,current_num_instances)
+                    #labels, centroids, instance_mask = maskD.kmeans_clustering(data, optimal_k,current_num_instances)
+                    labels, instance_mask = maskD.spectral_clustering(data, optimal_k, current_num_instances)
                     result=np.add(result, instance_mask)
                     current_num_instances+=optimal_k
                     #print("Cluster labels:", labels)
