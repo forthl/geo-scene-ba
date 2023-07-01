@@ -18,16 +18,16 @@ def get_segmentation_masks(img_path):
 
 
 # mask depth image with segmentations
-def get_masked_depth(depth_path, masks):
-    D = Image.open(depth_path)
-    depth_array = (np.asarray(D) -1) / 256
+def get_masked_disparity(disparity_path, masks):
+    D = Image.open(disparity_path)
+    disparity_array = np.asarray(D)
 
-    masked_depths = []
+    masked_disparities = []
     for mask in masks:
-        seg_masked = np.where(mask, depth_array, 0)
-        masked_depth = np.uint8(seg_masked)
-        masked_depths.append(masked_depth)
-    return masked_depths
+        seg_masked = np.where(mask, disparity_array, 0)
+        masked_disparity = np.uint8(seg_masked)
+        masked_disparities.append(masked_disparity)
+    return masked_disparities
 
 
 # saves masks on hard drive
@@ -82,17 +82,56 @@ def get_clusters(masked_depths, sampleIdx):
     return labels, centroids, data
 
 
+def visualize_data(data):
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')
+    ax.scatter3D(data[0], data[1], data[2]);
+    plt.xlim(-150, 350)
+    plt.ylim(-150, 350)
+    #ax.set_zlim(0, 255)
+    plt.show()
+
+def test(disparity):
+
+    pc = []
+    for i, row in enumerate(disparity):
+        for j, disp in enumerate(row):
+            if disp > 0.0:
+                pc.append([i, j, disp])
+
+    pct = np.transpose(pc)
+    visualize_data(pct)
+
+    ppct = np.transpose(project(disparity))
+    visualize_data(ppct)
+
+def project(disparity):
+    fx = 2262.52
+    fy = 2265.3017905988554
+    cx = 1096.98
+    cy = 513.137
+    b = 0.209313
+
+
+    pc = []
+    for i, row in enumerate(disparity):
+        for j, disp in enumerate(row):
+            if disp > 0.0:
+                pc.append([(i - cx) * (b * fx / disp) / fx, (j - cy) * (b * fx / disp) / fy, b * fx / disp])
+    return pc
+
 if __name__ == '__main__':
     img_path = "tmp_data/aachen_000000_000019_gtFine_color.png"
-    depth_path = "tmp_data/aachen_000000_000019_disparity.png"
+    disparity_path = "tmp_data/aachen_000000_000019_disparity.png"
 
     sampleIdx = 1  # 1 for cars, 10 for streetlamps, 6 for street
     masks = get_segmentation_masks(img_path)
-    masked_depths = get_masked_depth(depth_path, masks)
+    masked_disparities = get_masked_disparity(disparity_path, masks)
+
 
     Image.fromarray(masks[sampleIdx]).show()
 
-    labels, centroids, data = get_clusters(masked_depths, sampleIdx)
+    labels, centroids, data = get_clusters(masked_disparities, sampleIdx)
     visualize_clusters(labels, centroids, data)
 
 
