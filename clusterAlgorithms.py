@@ -23,27 +23,9 @@ class Kmeans:
         kn = KneeLocator(range(1, self.max_k + 1), distortions, curve='convex', direction='decreasing')
         return kn.knee
 
-    def optimal_k_bic(self):
-        # TODO
-        return 1
-
-    def optimal_k_ml(self):
-        # TODO
-        return 2
-
-    def optimal_k_vrc(self):
-        # TODO
-        return 3
-
     def find_optimal_k(self):
         if self.optimal_k_method == 'e':
             optimal_k = self.optimal_k_elbow()
-        elif self.optimal_k_method == 'bic':
-            optimal_k = self.optimal_k_bic()
-        elif self.optimal_k_method == 'ml':
-            optimal_k = self.optimal_k_ml()
-        elif self.optimal_k_method == 'vrc':
-            optimal_k = self.optimal_k_vrc()
         else:
             optimal_k = 0
         return optimal_k
@@ -149,23 +131,9 @@ class GaussianMixtureModel:
 
         return diff.index(min(diff)) + 2
 
-    def optimal_k_ml(self):
-        # TODO
-        return 2
-
-    def optimal_k_vrc(self):
-        # TODO
-        return 3
-
     def find_optimal_k(self):
-        if self.optimal_k_method == 'e':
-            optimal_k = self.optimal_k_elbow()
-        elif self.optimal_k_method == 'bic':
+        if self.optimal_k_method == 'bic':
             optimal_k = self.optimal_k_bic()
-        elif self.optimal_k_method == 'ml':
-            optimal_k = self.optimal_k_ml()
-        elif self.optimal_k_method == 'vrc':
-            optimal_k = self.optimal_k_vrc()
         else:
             optimal_k = 0
         return optimal_k
