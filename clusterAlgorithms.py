@@ -61,10 +61,14 @@ class Kmeans:
 
 class GaussianMixtureModel:
 
-    def __init__(self, data, max_k=20, optimal_k_method='bic'):
+    def __init__(self, data, max_k=20, optimal_k_method='bic', n_init=5,
+                 covariance_type='full', init_params='k-means++'):
         self.data = np.transpose(data)
         self.max_k = max_k
         self.optimal_k_method = optimal_k_method
+        self.n_init = n_init
+        self.covariance_type = covariance_type
+        self.init_params = init_params
 
     def optimal_k_elbow(self):
         # TODO
@@ -74,7 +78,8 @@ class GaussianMixtureModel:
         ks = np.arange(1, self.max_k)
         bics = []
         for k in ks:
-            gmm = GaussianMixture(n_components=k, init_params='kmeans')
+            gmm = GaussianMixture(n_components=k, n_init=self.n_init, covariance_type=self.covariance_type,
+                                  init_params=self.init_params, max_iter=1000)
             gmm.fit(self.data)
             bics.append(gmm.bic(self.data))
 
@@ -111,7 +116,8 @@ class GaussianMixtureModel:
         return optimal_k
 
     def gmm_clustering(self, k):
-        gmm = GaussianMixture(n_components=k).fit(self.data)
+        gmm = GaussianMixture(n_components=k, n_init=self.n_init, covariance_type=self.covariance_type,
+                              init_params=self.init_params, max_iter=1000).fit(self.data)
 
         # data points assigned to a cluster
         labels = gmm.predict(self.data)
