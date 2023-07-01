@@ -2,6 +2,8 @@ import numpy as np
 from sklearn.cluster import KMeans
 from kneed import KneeLocator
 from sklearn.mixture import GaussianMixture
+from sklearn.cluster import SpectralClustering
+from sklearn.metrics import silhouette_score
 import matplotlib.pyplot as plt
 
 
@@ -56,6 +58,59 @@ class Kmeans:
         optimal_k = self.find_optimal_k()
         print(f"Optimal k: {optimal_k}")
         labels, centroids = self.kmeans_clustering(optimal_k)
+        return labels, centroids, self.data
+
+
+class Spectral:
+
+    def __init__(self, data, max_k=20, optimal_k_method='sil'):
+        self.data = np.transpose(data)
+        self.max_k = max_k
+        self.optimal_k_method = optimal_k_method
+
+    def optimal_k_sil(self):
+        ks = np.arange(2, self.max_k)
+        silhouette_scores = []
+        best_score = -1
+        optimal_k = -1
+
+        for k in ks:
+            spectral = SpectralClustering(n_clusters=k, affinity='nearest_neighbors')
+            labels = spectral.fit_predict(self.data)
+            score = silhouette_score(self.data, labels)
+            silhouette_scores.append(score)
+
+            if score > best_score:
+                best_score = score
+                optimal_k = k
+
+        plt.plot(ks, silhouette_scores, marker='o')
+        plt.xlabel("Number of Clusters")
+        plt.ylabel("Silhouette Score")
+        plt.title("Silhouette Score vs Number of Clusters")
+        plt.show()
+
+        return optimal_k
+
+    def find_optimal_k(self):
+        if self.optimal_k_method == 'sil':
+            optimal_k = self.optimal_k_sil()
+        else:
+            optimal_k = 0
+        return optimal_k
+
+    def spectral_clustering(self, k):
+        spectral = SpectralClustering(n_clusters=k, affinity='nearest_neighbors')
+
+        # data points assigned to a cluster
+        labels = spectral.fit_predict(self.data)
+        centroids = np.zeros((3, 3))
+        return labels, centroids
+
+    def find_clusters(self):
+        optimal_k = self.find_optimal_k()
+        print(f"Optimal k: {optimal_k}")
+        labels, centroids = self.spectral_clustering(optimal_k)
         return labels, centroids, self.data
 
 

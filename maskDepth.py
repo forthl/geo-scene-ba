@@ -76,8 +76,9 @@ def get_clusters(masked_depths, sampleIdx):
     sample = masked_depths[sampleIdx]  # 1 for cars, 10 for streetlamps
     data = create_point_clouds([sample])
     data = data[0]
-    #cl = clusterAlgorithms.Kmeans(data=data, max_k=20, optimal_k_method='e')
-    cl = clusterAlgorithms.GaussianMixtureModel(data=data, max_k=20, optimal_k_method='bic')
+    # cl = clusterAlgorithms.Kmeans(data=data, max_k=20)
+    # cl = clusterAlgorithms.GaussianMixtureModel(data=data, max_k=20)
+    cl = clusterAlgorithms.Spectral(data=data, max_k=20)
     labels, centroids, _ = cl.find_clusters()
     return labels, centroids, data
 
@@ -124,7 +125,7 @@ if __name__ == '__main__':
     img_path = "tmp_data/aachen_000000_000019_gtFine_color.png"
     disparity_path = "tmp_data/aachen_000000_000019_disparity.png"
 
-    sampleIdx = 1  # 1 for cars, 10 for streetlamps, 6 for street
+    sampleIdx = 10  # 1 for cars, 10 for streetlamps, 6 for street
     masks = get_segmentation_masks(img_path)
     masked_disparities = get_masked_disparity(disparity_path, masks)
 
