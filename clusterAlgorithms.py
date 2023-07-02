@@ -4,6 +4,8 @@ from kneed import KneeLocator
 from sklearn.mixture import GaussianMixture
 from sklearn.cluster import SpectralClustering
 from sklearn.metrics import silhouette_score
+from sklearn.cluster import DBSCAN
+from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
 
@@ -151,4 +153,23 @@ class GaussianMixtureModel:
         optimal_k = self.find_optimal_k()
         print(f"Optimal k: {optimal_k}")
         labels, centroids = self.gmm_clustering(optimal_k)
+        return labels, centroids, self.data
+
+
+class Dbscan:
+    def __init__(self, data):
+        self.data = np.transpose(data)
+
+    def dbscan_clustering(self):
+        scaler = StandardScaler()
+        data_scaled = scaler.fit_transform(self.data)
+
+        dbscan = DBSCAN(eps=0.5, min_samples=5)
+        labels = dbscan.fit_predict(data_scaled)
+
+        centroids = np.zeros((3, 3))
+        return labels, centroids
+
+    def find_clusters(self):
+        labels, centroids = self.dbscan_clustering()
         return labels, centroids, self.data

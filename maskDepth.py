@@ -64,7 +64,7 @@ def visualize_clusters(labels, centroids, data):
     fig = plt.figure()
     ax = plt.axes(projection='3d')
     ax.scatter3D(data[0], data[1], data[2], c=labels);
-    ax.scatter3D(c[0], c[1], c[2], 'black');
+    #ax.scatter3D(c[0], c[1], c[2], 'black');
     plt.xlim(0, 1024)
     plt.ylim(0, 2048)
     ax.set_zlim(0, 255)
@@ -78,7 +78,8 @@ def get_clusters(masked_depths, sampleIdx):
     data = data[0]
     # cl = clusterAlgorithms.Kmeans(data=data, max_k=20)
     # cl = clusterAlgorithms.GaussianMixtureModel(data=data, max_k=20)
-    cl = clusterAlgorithms.Spectral(data=data, max_k=20)
+    # cl = clusterAlgorithms.Spectral(data=data, max_k=20)
+    cl = clusterAlgorithms.Dbscan(data=data)
     labels, centroids, _ = cl.find_clusters()
     return labels, centroids, data
 
