@@ -11,7 +11,7 @@ from src.pointnet2.pointnet2_part_seg_msg import get_model
 from src.data.depth_dataset import ContrastiveDepthDataset
 from src.modules.stego_modules import *
 
-from src.utils.data_utils import generatePointCloudFromRangeImage, imageFromPointsAndClassification
+from src.utils.data_utils import generatePointCloudFromRangeImage, imageFromPointsAndClassification, project_disparity_to_3d
 
 seg_classes = {'Earphone': [16, 17, 18], 'Motorbike': [30, 31, 32, 33, 34, 35], 'Rocket': [41, 42, 43],
                'Car': [8, 9, 10, 11], 'Laptop': [28, 29], 'Cap': [6, 7], 'Skateboard': [44, 45, 46], 'Mug': [36, 37],
@@ -41,15 +41,16 @@ def main():
     classifier = classifier.eval()
     
     depth_array = np.asarray(Image.open(depth_path))
-    points = generatePointCloudFromRangeImage(depth_array)
+    # points = generatePointCloudFromRangeImage(depth_array)
+    points = project_disparity_to_3d(depth_path)
 
     points = torch.unsqueeze(points.cuda(), 0)
     
-    vote_pool = torch.zeros((565755, 40)).cuda()
+    vote_pool = torch.zeros((117265, 50)).cuda()
         
     for _ in range(2):
         seg_pred, _ = classifier(points, to_categorical(1, 16))
-        seg_pred = seg_pred.contiguous().view(-1, 40)
+        seg_pred = seg_pred.contiguous().view(-1, 50)
         vote_pool += seg_pred
         
     seg_pred = vote_pool / 2

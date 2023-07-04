@@ -3,8 +3,10 @@ import torch
 import numpy as np
 import imageio.v3 as iio
 import matplotlib.pyplot as plt
+import cv2
 
 from src.utils.quad_tree import Point, Node, Quad
+from src.utils.pc_utils import write_ply
 
 
 def generateRangeImageFromPointCloud(pointcloud, shape):
@@ -43,7 +45,7 @@ def generatePointCloudFromRangeImage(range_image):
     depth_instensity = np.array(256 * range_image / 0x0fff,
                             dtype=np.uint8)
     
-    iio.imwrite('outputs/grayscale.png', depth_instensity)
+    # iio.imwrite('outputs/grayscale.png', depth_instensity)
     
     # fig, axs = plt.subplots(1, 2)
     # axs[0].imshow(range_image, cmap="gray")
@@ -55,7 +57,7 @@ def generatePointCloudFromRangeImage(range_image):
     pcd = []
     
     # height, width = range_image.shape
-    height, width = 512, 1024
+    height, width = range_image.shape
     for i in range(height):
        for j in range(width):
            z = depth_instensity[i][j]
@@ -68,12 +70,77 @@ def generatePointCloudFromRangeImage(range_image):
     
     return pc.T
 
+def project_disparity_to_3d(disparity_map_dir):
+    disparity_map = cv2.imread(disparity_map_dir, cv2.IMREAD_UNCHANGED).astype(np.float32)
+    # disparity_map[disparity_map > 0] = np.array(256 * disparity_map[disparity_map > 0] / 0x0fff, dtype=np.uint8).astype(np.float32)
+                            
+    disparity_map[disparity_map > 0] = (disparity_map[disparity_map > 0] - 1) / 256
+
+    fig, axs = plt.subplots(1, 1)
+    axs.imshow(disparity_map, cmap="gray")
+    axs.set_title('Depth image')
+    plt.show()
+
+    focal_length = 2262.52
+    cx = 1096.98
+    cy = 513.137
+    baseline = 0.209313
+
+    height, width = disparity_map.shape
+
+    # Generate a grid of pixel coordinates
+    grid_x, grid_y = np.meshgrid(np.arange(width), np.arange(height))
+
+    # Compute the depth from disparity
+    depth = disparity_map
+
+    # Filter out points with disparity value of 0
+    valid_indices = np.where(disparity_map != 0)
+    depth = depth[valid_indices]
+    points_x = (grid_x[valid_indices] - cx) * depth / focal_length
+    points_y = (grid_y[valid_indices] - cy) * depth / focal_length
+    points_z = depth
+
+
+    # Stack the coordinates into a point cloud
+    point_cloud = np.stack((points_x, points_y, points_z), axis=-1)
+    
+    plot_point_cloud(point_cloud)
+
+    return torch.tensor(point_cloud).T
+
+def plot_point_cloud(point_cloud):
+    write_ply(point_cloud, 'pointcloud.ply', False)
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Extract x, y, z coordinates
+    x = point_cloud[:, 0]
+    y = point_cloud[:, 1]
+    z = point_cloud[:, 2]
+
+    # Plot the point cloud
+    ax.scatter(x, y, z, c=z, cmap='jet', s=1)
+
+    plt.xlim(-6, 6)
+    plt.ylim(-2, 2)
+    ax.set_zlim(0, 32)
+
+    # Set labels and title
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title('3D Point Cloud')
+
+    # Show the plot
+    plt.show()
+
 def imageFromPointsAndClassification(pc, classification, range_image):    
-    img = np.zeros((513, 1025))
-    
-    print(pc.shape)
-    
+    img = np.zeros(range_image.shape)
+        
     pc = pc.int().cpu().numpy()
+    plot_point_cloud(pc)
     
     for i in range(pc.shape[2]):
         img[pc[0, 1, i].data, pc[0, 0, i].data] = classification[i]
@@ -82,6 +149,6 @@ def imageFromPointsAndClassification(pc, classification, range_image):
     
     axs[0].imshow(img)
     axs[0].set_title('Instances')
-    axs[1].imshow(range_image[:513, :1025])
+    axs[1].imshow(range_image)
     axs[1].set_title('Depth')
     plt.show()

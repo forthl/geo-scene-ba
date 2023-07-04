@@ -139,8 +139,7 @@ def my_app(cfg: DictConfig) -> None:
                 # save_masks(masked_depths)
                 point_clouds = maskD.create_point_clouds(masked_depths)
 
-
-                 result = np.zeros((320,320))
+                result = np.zeros((320,320))
                 current_num_instances=0
                 # K-Means Test
                 for point_cloud in point_clouds:
