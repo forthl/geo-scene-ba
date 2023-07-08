@@ -2,11 +2,13 @@ import numpy as np
 from sklearn.cluster import KMeans
 from kneed import KneeLocator
 from sklearn.mixture import GaussianMixture
+from sklearn.mixture import BayesianGaussianMixture
 from sklearn.cluster import SpectralClustering
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
 class Kmeans:
@@ -155,6 +157,40 @@ class GaussianMixtureModel:
         labels, centroids = self.gmm_clustering(optimal_k)
         return labels, centroids, self.data
 
+class BayesianGaussianMixtureModel:
+    def __init__(self, data, max_k=20, optimal_k_method='bic', n_init=5,
+                 covariance_type='full', init_params='k-means++'):
+        self.data = np.transpose(data)
+        self.max_k = max_k
+        self.optimal_k_method = optimal_k_method
+        self.n_init = n_init
+        self.covariance_type = covariance_type
+        self.init_params = init_params
+
+    def find_optimal_k(self):
+        bgmm = BayesianGaussianMixture(n_components=self.max_k, covariance_type=self.covariance_type,
+                                      init_params=self.init_params)
+        bgmm.fit(self.data)
+        bgmm_weights = bgmm.weights_
+        optimal_k = (np.round(bgmm_weights, 2) > 0).sum()
+        print('Estimated number of clusters: ' + str(optimal_k))
+
+        return optimal_k
+
+    def bgmm_clustering(self, k):
+        bgmm = BayesianGaussianMixture(n_components=k, covariance_type=self.covariance_type,
+                              init_params=self.init_params, max_iter=1000).fit(self.data)
+
+        # data points assigned to a cluster
+        labels = bgmm.predict(self.data)
+        centroids = np.zeros((3, 3))
+        return labels, centroids
+
+    def find_clusters(self):
+        optimal_k = self.find_optimal_k()
+        print(f"Optimal k: {optimal_k}")
+        labels, centroids = self.bgmm_clustering(optimal_k)
+        return labels, centroids, self.data
 
 class Dbscan:
     def __init__(self, data):
