@@ -97,9 +97,9 @@ def get_projected_clusters(masked_depths, sampleIdx):
 
     # cl = clusterAlgorithms.Kmeans(data=data, max_k=20)
     # cl = clusterAlgorithms.GaussianMixtureModel(data=data, max_k=20)
-    # cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=20)
+    cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=15)
     # cl = clusterAlgorithms.Spectral(data=data, max_k=20)
-    cl = clusterAlgorithms.Dbscan(data=data)
+    # cl = clusterAlgorithms.Dbscan(data=data)
     labels, centroids, _ = cl.find_clusters()
     return labels, centroids, data
 
