@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import clusterAlgorithms
 import cv2
-from plyfile import PlyData, PlyElement
+from src.utils.plyfile import PlyData, PlyElement
 
 
 # get masks from segmentations
@@ -16,7 +16,6 @@ def get_segmentation_masks(img_path):
         segmentation = I == c
         masks.append(segmentation)
     return masks
-
 
 # mask depth image with segmentations
 def get_masked_disparity(disparity_path, masks):
@@ -41,14 +40,12 @@ def get_masked_depth(disparity_path, masks):
         masked_depths.append(seg_masked)
     return masked_depths
 
-
 # saves masks on hard drive
 def save_masks(masked_depths):
     for i, d in enumerate(masked_depths):
         masked_depth = Image.fromarray(d).convert('RGB')
         masked_depth.save(
             "aachen_000000_000019_disparity_mask_" + str(i) + ".jpg")
-
 
 # creates point cloud out of masked depth images
 def create_point_clouds(masked_depths):
@@ -68,19 +65,17 @@ def create_projected_point_clouds(masked_depths):
         point_clouds.append(point_cloud)
     return point_clouds
 
-
 # visualizes clusters of data
 def visualize_clusters(labels, centroids, data):
     c = np.transpose(centroids)
     fig = plt.figure()
     ax = plt.axes(projection='3d')
-    ax.scatter3D(data[0], data[1], data[2], c=labels);
+    ax.scatter3D(data[0], data[1], data[2], c=labels)
     #ax.scatter3D(c[0], c[1], c[2], 'black');
     plt.xlim(0, 1024)
     plt.ylim(0, 2048)
     ax.set_zlim(0, 255)
     plt.show()
-
 
 # computes cluster centroids and labels of each datapoint
 def get_clusters(masked_depths, sampleIdx):
@@ -102,9 +97,9 @@ def get_projected_clusters(masked_depths, sampleIdx):
 
     # cl = clusterAlgorithms.Kmeans(data=data, max_k=20)
     # cl = clusterAlgorithms.GaussianMixtureModel(data=data, max_k=20)
-    cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=20)
+    # cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=20)
     # cl = clusterAlgorithms.Spectral(data=data, max_k=20)
-    # cl = clusterAlgorithms.Dbscan(data=data)
+    cl = clusterAlgorithms.Dbscan(data=data)
     labels, centroids, _ = cl.find_clusters()
     return labels, centroids, data
 
@@ -120,12 +115,9 @@ def project_disparity_to_3d(disparity_map):
     # Generate a grid of pixel coordinates
     grid_x, grid_y = np.meshgrid(np.arange(width), np.arange(height))
 
-    # Compute the depth from disparity
-    depth = (baseline * focal_length_x) / disparity_map
-
     # Filter out points with disparity value of 0
     valid_indices = np.where(disparity_map != 0)
-    depth = depth[valid_indices]
+    depth = (baseline * focal_length_x) / disparity_map[valid_indices]
     points_x = (grid_x[valid_indices] - cx) * depth / focal_length_x
     points_y = (grid_y[valid_indices] - cy) * depth / focal_length_y
     points_z = depth
@@ -151,7 +143,7 @@ def visualize_projected_clusters(labels, centroids, data):
 
     c = np.transpose(centroids)
     ax = plt.axes(projection='3d')
-    ax.scatter3D(data[0], data[1], data[2], c=labels);
+    ax.scatter3D(data[0], data[1], data[2], c=labels)
     #ax.scatter3D(c[0], c[1], c[2], 'black');
     plt.xlim(-6, 6)
     plt.ylim(-2, 2)
