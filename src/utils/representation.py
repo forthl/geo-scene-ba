@@ -3,7 +3,11 @@ import matplotlib.pyplot as plt
 
 def plotGraph(image, title = None):
     arr = np.asarray(image)
-    plt.imshow(arr)
+    
+    mycmap = plt.cm.get_cmap('tab20')
+    mycmap.set_under('w')
+    
+    plt.imshow(arr, cmap=mycmap, vmin=.1)
     if title is not None:
         plt.title(title)
     plt.show()

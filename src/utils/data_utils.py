@@ -36,8 +36,12 @@ def generateQuadTreeFromRangeImage(range_image, insert=False):
     if insert:
         for y in range(range_image.shape[0]):
             rows = range_image[y].nonzero()
+            
+            if len(rows) <= 0:
+                continue
+            
             for x in rows:
-                tree.insert(Node(Point(y, x.item()), range_image[y][x.item()]))
+                tree.insert(Node(Point(y, x), range_image[y][x]))
 
     return tree
 
@@ -70,14 +74,19 @@ def generatePointCloudFromRangeImage(range_image):
     
     return pc.T
 
-def project_disparity_to_3d(disparity_map_dir):
+def project_disparity_to_3d(disparity_map_dir, mask):
     disparity_map = cv2.imread(disparity_map_dir, cv2.IMREAD_UNCHANGED).astype(np.float32)
-    # disparity_map[disparity_map > 0] = np.array(256 * disparity_map[disparity_map > 0] / 0x0fff, dtype=np.uint8).astype(np.float32)
-                            
-    disparity_map[disparity_map > 0] = (disparity_map[disparity_map > 0] - 1) / 256
+    disparity_map[disparity_map > 0] = np.array(256 * disparity_map[disparity_map > 0] / 0x0fff, dtype=np.uint8).astype(np.float32)
+    # disparity_map[disparity_map > 0] = (disparity_map[disparity_map > 0] - 1) / 256
+                 
+    disparity = torch.zeros(disparity_map.shape)   
 
+    # disparity = disparity_map
+    disparity =  disparity_map * mask
+
+        
     fig, axs = plt.subplots(1, 1)
-    axs.imshow(disparity_map, cmap="gray")
+    axs.imshow(disparity, cmap="gray")
     axs.set_title('Depth image')
     plt.show()
 
@@ -86,16 +95,16 @@ def project_disparity_to_3d(disparity_map_dir):
     cy = 513.137
     baseline = 0.209313
 
-    height, width = disparity_map.shape
+    height, width = disparity.shape
 
     # Generate a grid of pixel coordinates
     grid_x, grid_y = np.meshgrid(np.arange(width), np.arange(height))
 
     # Compute the depth from disparity
-    depth = disparity_map
+    depth = disparity
 
     # Filter out points with disparity value of 0
-    valid_indices = np.where(disparity_map != 0)
+    valid_indices = np.where(disparity != 0)
     depth = depth[valid_indices]
     points_x = (grid_x[valid_indices] - cx) * depth / focal_length
     points_y = (grid_y[valid_indices] - cy) * depth / focal_length
@@ -140,15 +149,18 @@ def imageFromPointsAndClassification(pc, classification, range_image):
     img = np.zeros(range_image.shape)
         
     pc = pc.int().cpu().numpy()
-    plot_point_cloud(pc)
     
     for i in range(pc.shape[2]):
-        img[pc[0, 1, i].data, pc[0, 0, i].data] = classification[i]
+        img[pc[0, 1, i].data, pc[0, 0, i].data] = classification[i] + 1
     
     fig, axs = plt.subplots(1, 2)
     
     axs[0].imshow(img)
     axs[0].set_title('Instances')
-    axs[1].imshow(range_image)
+    axs[1].imshow(range_image, cmap="gray")
     axs[1].set_title('Depth')
     plt.show()
+    
+    # plot_point_cloud(pc)
+    
+    print(np.unique(classification) > 1) 

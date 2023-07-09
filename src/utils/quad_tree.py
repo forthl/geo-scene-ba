@@ -26,8 +26,6 @@ class Quad:
         self.bot_right_tree = None
 
     def insert(self, node: Node):
-        if not self.isBoundary(node.pos):
-            return
         
         if abs(self.top_left.x - self.bot_right.x) <= 1 and abs(self.top_left.y - self.bot_right.y <= 1):
             if self.n.pos is None:
@@ -76,9 +74,6 @@ class Quad:
                 self.bot_right_tree.insert(node)
                 
     def search(self, p: Point):
-        if not self.isBoundary(p):
-            return None
-        
         if self.n.pos != None:
             return self.n
         
@@ -180,6 +175,3 @@ class Quad:
         nodes = quad.gather()
                             
         return nodes
-
-    def isBoundary(self, p: Point):
-        return p.x >= self.top_left.x and p.x <= self.bot_right.x and p.y >= self.top_left.y and p.y <= self.bot_right.y
