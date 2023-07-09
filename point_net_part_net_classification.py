@@ -1,10 +1,4 @@
-import hydra
-import os
-import src.pointnet2.provider as provider
-
-from omegaconf import DictConfig
-from os.path import join
-
+from maskDepth import get_segmentation_masks, get_masked_disparity
 
 from src.pointnet2.pointnet2_part_seg_msg import get_model
 
@@ -34,19 +28,25 @@ def main():
     classifier = get_model(50, normal_channel=False)
     checkpoint = torch.load('./checkpoints/saved_models/pointnet2/pointnet_no_normals.pth')
     img_path = "./tmp_data/aachen_000000_000019_gtFine_color.png"
-    depth_path = "./tmp_data/aachen_000000_000019_disparity_small.png"
+    depth_path = "./tmp_data/aachen_000000_000019_disparity.png"
     
     classifier.load_state_dict(checkpoint['model_state_dict'])
     classifier = classifier.cuda()
     classifier = classifier.eval()
     
+    masks = get_segmentation_masks(img_path)
+    
+    sampleIdx = 1  # 1 for cars, 10 for streetlamps, 6 for street
+    
     depth_array = np.asarray(Image.open(depth_path))
+    
     # points = generatePointCloudFromRangeImage(depth_array)
-    points = project_disparity_to_3d(depth_path)
+    points = project_disparity_to_3d(depth_path, masks[sampleIdx])
+    # points = project_disparity_to_3d(depth_path)
 
     points = torch.unsqueeze(points.cuda(), 0)
     
-    vote_pool = torch.zeros((117265, 50)).cuda()
+    vote_pool = torch.zeros((41790, 50)).cuda()
         
     for _ in range(2):
         seg_pred, _ = classifier(points, to_categorical(1, 16))
