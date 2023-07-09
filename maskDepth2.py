@@ -1,20 +1,25 @@
+import matplotlib.pyplot
 import numpy as np
 import PIL.Image as Image
 from sklearn.cluster import KMeans
 import sklearn as skl
 from sklearn.cluster import SpectralClustering
+from sklearn.preprocessing import normalize
+from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 from kneed import KneeLocator
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.mixture import GaussianMixture
+from sklearn.cluster import DBSCAN
 import random
 
-def normalize_array(arr):
+
+def normalize_array_to_range(arr, range):
     min_val = np.min(arr)
     max_val = np.max(arr)
-    if max_val==min_val:
+    if max_val == min_val:
         return np.zeros(arr.shape)
-    normalized_arr = (arr - min_val) / (max_val - min_val) * 255
+    normalized_arr = ((arr - min_val) / (max_val - min_val)) * range
     return normalized_arr
 
 # get masks from segmentations
@@ -24,35 +29,30 @@ def get_segmentation_masks(img):
     I = np.asarray(I)
     for c in np.unique(I):
         segmentation = I == c
-        # test = np.uint8(segmentation * 255)
         masks.append(segmentation)
     return masks
+
 
 # mask depth image with segmentations
 def get_masked_depth(depth_img, masks):
     depth_array = np.asarray(depth_img)
-    depth_array = normalize_array(depth_array)
+    # depth_array = normalize_array_to_range(depth_array)
     masked_depths = []
     for mask in masks:
         seg_masked = np.where(mask, depth_array, 0)
         masked_depth = np.uint8(seg_masked)
-        masked_depth = normalize_array(masked_depth)
+        # masked_depth = normalize_array_to_range(masked_depth)
         masked_depths.append(masked_depth)
         # masked_depth = Image.fromarray(masked_depth)
         # masked_depth.show()
     return masked_depths
 
-
-def save_masks(masked_depths):
-    for i, d in enumerate(masked_depths):
-        masked_depth = Image.fromarray(d).convert('RGB')
-        masked_depth.save("aachen_000000_000019_disparity_mask_" + str(i) + ".jpg")
-
 def create_point_clouds(masked_depths):
     point_clouds = []
     for mask in masked_depths:
         non_zero = np.nonzero(mask)
-        point_cloud = np.array([non_zero[0], non_zero[1], mask[non_zero[0],non_zero[1]]])
+        point_cloud = np.array([non_zero[0], non_zero[1], mask[non_zero[0], non_zero[1]]])
+        point_cloud = np.transpose(point_cloud)
         point_clouds.append(point_cloud)
     return point_clouds
 
@@ -63,9 +63,9 @@ def optimal_k_elbow(data, max_k):
         kmeans = KMeans(n_clusters=k, init='k-means++', random_state=0, n_init='auto').fit(data)
         distortions.append(kmeans.inertia_)
 
-    # Find the optimal k
     kn = KneeLocator(range(1, max_k + 1), distortions, curve='convex', direction='decreasing')
     return kn.knee
+
 
 def optimal_k_bic(data, max_k):
     bics = []
@@ -76,24 +76,31 @@ def optimal_k_bic(data, max_k):
 
     return np.argmin(bics)
 
+
 def optimal_k_ml(data, max_k):
-    #TODO
+    # TODO
     return 1
+
 
 def optimal_k_vrc(data, max_k):
     vrcs = []
     SSE_1 = KMeans(n_clusters=1, init='k-means++', random_state=0).fit(data).inertia_
+    vrcs.append(SSE_1)
     for k in range(2, max_k):
-        if k==data.shape[0]:
+        if k == data.shape[0]:
             break
         kmeans = KMeans(n_clusters=k, init='k-means++', random_state=0).fit(data)
-        SSE_k= kmeans.inertia_
-        vrc_i = ((SSE_1-SSE_k)/(k-1))/(SSE_k/(data.shape[0]-k))
+        SSE_k = kmeans.inertia_
+        vrc_i = ((SSE_1 - SSE_k) / (k - 1)) / (SSE_k / (data.shape[0] - k))
         vrcs.append(vrc_i)
-    return np.argmin(vrcs)+2
+    plot_vrc = [np.nan, np.nan]
+    for val in vrcs:
+        plot_vrc.append(val)
+    matplotlib.pyplot.plot(plot_vrc)
+    return np.argmin(vrcs) + 2
+
 
 def find_optimal_k(data, max_k, optimal_k_method='e'):
-
     optimal_k = 0
     if optimal_k_method == 'e':
         optimal_k = optimal_k_elbow(data, max_k)
@@ -106,51 +113,118 @@ def find_optimal_k(data, max_k, optimal_k_method='e'):
 
     return optimal_k
 
-def spectral_clustering(data, k, current_num_instances ):
-    euclidean_distance = skl.metrics.euclidean_distances(data,data)
+def kmeans_clustering_with_preprocessing(point_cloud, image_shape, optimal_k_finder, preprocessing,
+                                         normalization_range, remove_outliers=False, visualize_clusters_bool=False,
+                                         visualize_instance_mask_bool=False):
+    labels, centroids, instance_mask = [], [], []
+    optimal_k = 0
+    max_k = 10  # Maximum value of k to consider
 
-    spectral_clusters = SpectralClustering(n_clusters=k, random_state=0).fit(data)
-    print(spectral_clusters.labels_)
-    instance_mask=np.zeros((320,320))#resolution is hard coded at (320,320)
-    for index, point in enumerate(data):
-        instance_mask[int(point[0]),int(point[1])]=spectral_clusters.labels_[index]+current_num_instances
+    if remove_outliers:
+        point_cloud = remove_point_cloud_outliers(point_cloud)
 
-    colorMask = grayscale_to_random_color(instance_mask, k+current_num_instances).astype(np.uint8)
-    Image.fromarray(colorMask).convert('RGB').show()
-    labels = spectral_clusters.labels_
+    if preprocessing == "std":
+        stds = StandardScaler()
+        standardized_point_cloud = stds.fit_transform(point_cloud)
+        optimal_k = find_optimal_k(standardized_point_cloud, min(max_k, standardized_point_cloud.shape[0]),
+                                   optimal_k_finder)
+        labels, centroids, instance_mask = kmeans_clustering_standardized(point_cloud,image_shape, standardized_point_cloud,
+                                                                          optimal_k)
+        point_cloud = standardized_point_cloud  # for visualizing the clusters
 
-    return labels, instance_mask
+    elif preprocessing == "nrm":
+        point_cloud = np.transpose(point_cloud)
+        normalized_depth = normalize_array_to_range(point_cloud[2], normalization_range)
+        normalized_point_cloud = np.transpose([point_cloud[0], point_cloud[1], normalized_depth])
+        optimal_k = find_optimal_k(normalized_point_cloud, min(max_k, normalized_point_cloud.shape[0]),
+                                   optimal_k_finder)
+        labels, centroids, instance_mask = kmeans_clustering_normalized(normalized_point_cloud,image_shape, optimal_k)
+
+    elif preprocessing == "nothing":
+        optimal_k = find_optimal_k(point_cloud, min(max_k, point_cloud.shape[0]), optimal_k_finder)
+        labels, centroids, instance_mask = kmeans_clustering(point_cloud,image_shape,
+                                                             optimal_k)
+
+    if visualize_instance_mask_bool:
+        visualize_instance_mask(instance_mask, image_shape)
+
+    if visualize_clusters_bool:
+        visualize_clusters(point_cloud, labels, centroids)
+
+    return labels, centroids, instance_mask
 
 
-def kmeans_clustering(data, k, current_num_instances ):
+def kmeans_clustering(data, image_shape, k):
     kmeans = KMeans(n_clusters=k, random_state=0).fit(data)
-    instance_mask=np.zeros((320,320))#resolution is hard coded at (320,320)
+    instance_mask = np.zeros(image_shape)
+    kmeans.labels_ = kmeans.labels_ + 1  # move labels from range (0,num_clusters-1) to range(1,num_clusters) for better visualization
     for index, point in enumerate(data):
-        instance_mask[int(point[0]),int(point[1])]=kmeans.labels_[index]+current_num_instances
+        instance_mask[int(point[0]), int(point[1])] = kmeans.labels_[index]
 
-    colorMask = grayscale_to_random_color(instance_mask, k+current_num_instances).astype(np.uint8)
-    #Image.fromarray(colorMask).convert('RGB').show()
     labels = kmeans.labels_
     centroids = kmeans.cluster_centers_
 
     return labels, centroids, instance_mask
 
 
+def kmeans_clustering_normalized(data,image_shape, k):
+    kmeans = KMeans(n_clusters=k, random_state=0).fit(data)
+    instance_mask = np.zeros(image_shape)
+    kmeans.labels_ = kmeans.labels_ + 1  # move labels from range (0,num_clusters-1) to range(1,num_clusters) for better visualization
+    for index, point in enumerate(data):
+        instance_mask[int(point[0]), int(point[1])] = kmeans.labels_[index]
 
-def grayscale_to_random_color(grayscale,num_colors):
-    color_list=[]
-    for i in range(num_colors):
+    labels = kmeans.labels_
+    centroids = kmeans.cluster_centers_
+
+    return labels, centroids, instance_mask
+
+
+def kmeans_clustering_standardized(data, image_shape, standardized_data, k):
+    kmeans = KMeans(n_clusters=k, random_state=0).fit(standardized_data)
+    instance_mask = np.zeros(image_shape)
+    kmeans.labels_ = kmeans.labels_ + 1  # move labels from range (0,num_clusters-1) to range(1,num_clusters) for better visualization
+    for index, point in enumerate(data):
+        instance_mask[int(point[0]), int(point[1])] = kmeans.labels_[index]
+
+    labels = kmeans.labels_
+    centroids = kmeans.cluster_centers_
+
+    return labels, centroids, instance_mask
+
+
+def DBSCAN_clustering(data, image_shape, epsilon, min_samples):
+    dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
+    instance_mask = np.zeros(image_shape)
+    dbscan = dbscan.fit(data)
+    labels = dbscan.labels_
+    labels += 1  # this converts the label range from(-1,num_clusters-1) to (0,num_clusters) in order for each instance to have unique id in the merged instance mask
+    # TODO -1 represents noise but for right now we treat it as missing data
+    for index, point in enumerate(data):
+        instance_mask[int(point[0]), int(point[1])] = labels[index]
+
+    #colorMask = grayscale_to_random_color(instance_mask, num_clusters).astype(np.uint8)
+    #Image.fromarray(colorMask).convert('RGB').show()
+
+    return labels, instance_mask
+
+
+def remove_point_cloud_outliers(point_cloud):
+    # TODO implement this
+    return point_cloud
+
+
+def grayscale_to_random_color(grayscale, image_shape=(320, 320)):
+    color_list = []
+    color_list.append((0, 0, 0))  # 0 values are not part of any instance thus black
+    for i in range(1000):
         color = list(np.random.choice(range(256), size=3))
         color_list.append(color)
-    result = np.zeros((320,320,3))
-    for i in  range(319):
-        for j in range(319):
-            if int(grayscale[i,j])==0:
-                result[i, j] = (0,0,0)
-            else:
-                result[i,j]=color_list[int(grayscale[i,j])]
+    result = np.zeros((image_shape[0], image_shape[1], 3))
+    for i in range(image_shape[0]):
+        for j in range(image_shape[1]):
+            result[i, j] = color_list[int(grayscale[i, j])]
     return result
-
 
 
 def visualize_clusters(data, labels, centroids):
@@ -161,8 +235,8 @@ def visualize_clusters(data, labels, centroids):
     ax.scatter(data[:, 0], data[:, 1], data[:, 2], c=labels)
 
     # Plot centroids
-    ax.scatter(centroids[:, 0], centroids[:, 1], centroids[:, 2],
-               c='red', marker='x', s=200)
+    #ax.scatter(centroids[:, 0], centroids[:, 1], centroids[:, 2],
+    #           c='red', marker='x', s=200)
 
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
@@ -171,23 +245,8 @@ def visualize_clusters(data, labels, centroids):
 
     plt.show()
 
-if __name__ == '__main__':
-    img_path = "aachen_000000_000019_gtFine_color.png"
-    depth_path = "aachen_000000_000019_disparity.png"
 
-    masks = get_segmentation_masks(img_path)
-    masked_depths = get_masked_depth(depth_path, masks)
-    #save_masks(masked_depths)
-    point_clouds = create_point_clouds(masked_depths)
-
-    # K-Means Test
-    data = np.transpose(point_clouds[3])
-    max_k = 10  # Maximum value of k to consider
-    optimal_k = find_optimal_k(data, max_k)
-    print(f"Optimal value of k: {optimal_k}")
-    labels, centroids = kmeans_clustering(data, optimal_k)
-    print("Cluster labels:", labels)
-    print("Centroids:", centroids)
-    visualize_clusters(data, labels, centroids)
-
+def visualize_instance_mask(instance_mask, image_shape):
+    colorMask = grayscale_to_random_color(instance_mask, image_shape).astype(np.uint8)
+    Image.fromarray(colorMask).convert('RGB').show()
 
