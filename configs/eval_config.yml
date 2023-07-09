@@ -1,21 +1,17 @@
-output_root: '../'
-pytorch_data_dir: 'dataset'
+output_root: '../src'
+pytorch_data_dir: '../src/dataset'
 experiment_name: "cityscapes"
 res: 320
 batch_size: 1
-num_workers: 0
-run_picie: False
+num_workers: 1
+run_picie: True
 run_crf: True
 run_prediction: True
 dark_mode: True
 use_ddp: False
-InstanceClasses: [
-            'road', 'sidewalk', 'parking', 'rail track', 'building',
-            'wall', 'fence', 'guard rail', 'bridge', 'tunnel',
-            'pole', 'polegroup', 'traffic light', 'traffic sign', 'vegetation',
-            'terrain', 'sky', 'person', 'rider', 'car',
-            'truck', 'bus', 'caravan', 'trailer', 'train',
-            'motorcycle', 'bicycle']
+InstanceClasses: ['car','ground']
+resize_to_original: False
+resize_res: 1024
 
 model_paths:
   #- "../saved_models/cocostuff27_vit_base_5.ckpt"
