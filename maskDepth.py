@@ -95,13 +95,30 @@ def get_projected_clusters(masked_depths, sampleIdx):
     data = create_projected_point_clouds([masked_depths[sampleIdx]])
     data = np.transpose(data[0])
 
+
+
     # cl = clusterAlgorithms.Kmeans(data=data, max_k=20)
     # cl = clusterAlgorithms.GaussianMixtureModel(data=data, max_k=20)
-    cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=15)
+    cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=20)
     # cl = clusterAlgorithms.Spectral(data=data, max_k=20)
     # cl = clusterAlgorithms.Dbscan(data=data)
     labels, centroids, _ = cl.find_clusters()
-    return labels, centroids, data
+
+    # unproject labeled data
+    instance_mask = np.zeros((1024, 2048))
+    valid_indices = np.where(masked_depths[sampleIdx] != 0)
+    for index, valid in enumerate(np.transpose(valid_indices)):
+        instance_mask[valid[0], valid[1]] = (labels[index]+1) * 255 / len(centroids)+1
+
+    fig, ax = plt.subplots()
+    ax.imshow(masked_depths[sampleIdx])
+    plt.show()
+
+    fig, ax2 = plt.subplots()
+    ax2.imshow(instance_mask)
+    plt.show()
+    #Image.fromarray(np.uint8(instance_mask)).convert('RGB').show()
+    return 0, 0, 0#labels, centroids, data
 
 def project_disparity_to_3d(disparity_map):
     focal_length_x = 2262.52
@@ -170,4 +187,4 @@ if __name__ == '__main__':
     labels2, centroids2, data2 = get_projected_clusters(masked_depths, sampleIdx)
 
     #visualize_clusters(labels1, centroids1, data1)
-    visualize_projected_clusters(labels2, centroids2, data2)
+    #visualize_projected_clusters(labels2, centroids2, data2)
