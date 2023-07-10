@@ -158,11 +158,10 @@ class GaussianMixtureModel:
         return labels, centroids, self.data
 
 class BayesianGaussianMixtureModel:
-    def __init__(self, data, max_k=20, optimal_k_method='bic', n_init=5,
+    def __init__(self, data, max_k=20, n_init=5,
                  covariance_type='full', init_params='k-means++'):
         self.data = np.transpose(data)
         self.max_k = max_k
-        self.optimal_k_method = optimal_k_method
         self.n_init = n_init
         self.covariance_type = covariance_type
         self.init_params = init_params
