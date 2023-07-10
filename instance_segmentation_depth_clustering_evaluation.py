@@ -18,6 +18,7 @@ from tqdm import tqdm
 import random
 import torchvision.transforms as T
 import evaluation_utils as eval_utils
+import clusterAlgorithms
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 
@@ -127,14 +128,13 @@ def my_app(cfg: DictConfig) -> None:
                 instance_mask_clustered = np.zeros(image_shape)
                 current_num_instances = 0
 
-                for point_cloud in point_clouds:
+                for depthIdx, point_cloud in enumerate(point_clouds):
 
                     if point_cloud.shape[0] == 0:  # TODO check if it is an empty point cloud. Look into this bug later
                         continue
 
                     labels, instance_mask = [], []
-                    labels, instance_mask = maskD.DBSCAN_clustering(point_cloud, image_shape=image_shape,  #insert clustering algorithmn here
-                                                                    epsilon=epsilon, min_samples=min_samples)
+                    labels, instance_mask = maskD.BGMM_Clustering(point_cloud, image_shape, masked_depths[depthIdx], max_k=20) #maskD.DBSCAN_clustering(point_cloud, image_shape=image_shape,  #insert clustering algorithmn here epsilon=epsilon, min_samples=min_samples)
 
                     num_clusters = len(set(labels)) - 1
                     instance_mask = np.where(instance_mask != 0, instance_mask + current_num_instances, 0)
