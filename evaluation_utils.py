@@ -67,8 +67,8 @@ def get_bounding_boxes(img):
 
     for id in instance_ids:  # value 0 are object which have no instances
         indexes = np.nonzero(np.where(img == id, img, 0))
-        bounding_boxes[id] = (np.max(indexes[1]), np.max(indexes[0]), np.min(indexes[1]),
-                              np.min(indexes[0]))  # Bounding box encoded as (Right, Bottom, Left, Top)
+        bounding_boxes[id] = (np.max(indexes[1])+1, np.max(indexes[0])+1, np.min(indexes[1])-1,
+                              np.min(indexes[0])-1) # Bounding box encoded as (Right, Bottom, Left, Top)
 
     return bounding_boxes
 
@@ -90,7 +90,8 @@ def bb_intersection_over_union(boxA, boxB):  # bounding boxes are in array-like 
     # compute the intersection over union by taking the intersection
     # area and dividing it by the sum of prediction + ground-truth
     # areas - the interesection area
-    iou = interArea / float(boxAArea + boxBArea - interArea)
+
+    iou = interArea / float(boxAArea + boxBArea - interArea + 0.00000001)
 
     # return the intersection over union value
     return iou
@@ -120,12 +121,12 @@ def drawBoundingBoxes(imageData, inferenceResults, color):
     inferenceResults: inference results array off object (l,t,w,h)
     colorMap: Bounding box color candidates, list of RGB tuples.
     """
+    imgHeight, imgWidth, _ = imageData.shape
     for res in inferenceResults:
-        right = int(res[0])
-        bottom = int(res[1])
-        left = int(res[2])
-        top = int(res[3])
-        imgHeight, imgWidth, _ = imageData.shape
+        right = min(int(res[0]),imgWidth)
+        bottom = min(int(res[1]),imgHeight)
+        left = max(int(res[2]),0)
+        top = max(int(res[3]),0)
         thick = int((imgHeight + imgWidth) // 900)
         cv2.rectangle(imageData,(left, top), (right, bottom), color, thick)
 
