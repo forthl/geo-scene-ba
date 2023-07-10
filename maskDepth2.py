@@ -12,6 +12,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.mixture import GaussianMixture
 from sklearn.cluster import DBSCAN
 import random
+import clusterAlgorithms
 
 
 def normalize_array_to_range(arr, range):
@@ -43,16 +44,14 @@ def get_segmentation_masks(img):
 
 # mask depth image with segmentations
 def get_masked_depth(depth_img, masks):
-    depth_array = np.asarray(depth_img)
+    depth_array = np.asarray(depth_img).astype(np.float32)
+    depth_array[depth_array > 0] = (depth_array[depth_array > 0] - 1.0) / 256.0
+
     # depth_array = normalize_array_to_range(depth_array)
     masked_depths = []
     for mask in masks:
         seg_masked = np.where(mask, depth_array, 0)
-        masked_depth = np.uint8(seg_masked)
-        # masked_depth = normalize_array_to_range(masked_depth)
-        masked_depths.append(masked_depth)
-        # masked_depth = Image.fromarray(masked_depth)
-        # masked_depth.show()
+        masked_depths.append(seg_masked)
     return masked_depths
 
 def create_point_clouds(masked_depths):
@@ -63,6 +62,37 @@ def create_point_clouds(masked_depths):
         point_cloud = np.transpose(point_cloud)
         point_clouds.append(point_cloud)
     return point_clouds
+
+def create_projected_point_clouds(masked_depths):
+    point_clouds = []
+    for mask in masked_depths:
+        point_cloud = project_disparity_to_3d(mask)
+        point_clouds.append(point_cloud)
+    return point_clouds
+
+def project_disparity_to_3d(disparity_map):
+    focal_length_x = 2262.52
+    focal_length_y = 2265.3017905988554
+    cx = 1096.98
+    cy = 513.137
+    baseline = 0.209313
+
+    height, width = disparity_map.shape
+
+    # Generate a grid of pixel coordinates
+    grid_x, grid_y = np.meshgrid(np.arange(width), np.arange(height))
+
+    # Filter out points with disparity value of 0
+    valid_indices = np.where(disparity_map != 0)
+    depth = (baseline * focal_length_x) / disparity_map[valid_indices]
+    points_x = (grid_x[valid_indices] - cx) * depth / focal_length_x
+    points_y = (grid_y[valid_indices] - cy) * depth / focal_length_y
+    points_z = depth
+
+    # Stack the coordinates into a point cloud
+    point_cloud = np.stack((points_x, points_y, points_z), axis=-1)
+
+    return point_cloud
 
 
 def optimal_k_elbow(data, max_k):
@@ -216,6 +246,18 @@ def DBSCAN_clustering(data, image_shape, epsilon, min_samples):
 
     return labels, instance_mask
 
+def BGMM_Clustering(data, image_shape, depth_image, max_k=20):
+    cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=20)
+    labels, _, _ = cl.find_clusters()
+    labels += 1
+
+    # unproject labeled data
+    instance_mask = np.zeros(image_shape)
+    valid_indices = np.where(depth_image != 0)
+    for index, valid in enumerate(np.transpose(valid_indices)):
+        instance_mask[valid[0], valid[1]] = labels[index]
+
+    return labels, instance_mask
 
 def remove_point_cloud_outliers(point_cloud):
     # TODO implement this
