@@ -4,7 +4,7 @@ from os.path import join
 import torch.multiprocessing
 
 from torch.utils.data import Dataset
-from src.data import ContrastiveSegDataset
+from src.data.stego_data_utils import ContrastiveSegDataset
 
 import json
 import os
@@ -121,8 +121,8 @@ class Cityscapes_Depth(VisionDataset):
     ) -> None:
         super(Cityscapes_Depth, self).__init__(root, transforms, transform, target_transform)
         self.mode = 'gtFine' if mode == 'fine' else 'gtCoarse'
-        self.images_dir = os.path.join(self.root, 'leftImg8bit', split)
-        self.depth_dir = os.path.join(self.root, "disparity", split)
+        self.images_dir = os.path.join(self.root, self.mode, 'leftImg8bit', split)
+        self.depth_dir = os.path.join(self.root, self.mode, "disparity", split)
         self.targets_dir = os.path.join(self.root, self.mode, split)
         self.target_type = target_type
         self.split = split

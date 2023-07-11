@@ -164,7 +164,6 @@ def labelSegments(n: Node, range_image, labels, label):
                     q.append(nn)
 
         q = q[1:]
-        print(len(q))
 
 
 def find_NNs(segments: torch.Tensor, mask: torch.Tensor):

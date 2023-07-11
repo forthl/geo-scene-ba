@@ -14,7 +14,7 @@ import src.utils.json_to_binary_mask as Json2BinMask
 
 from src.crf import dense_crf
 from src.data.stego_data_utils import ContrastiveSegDataset
-from src.eval_segmentation import batched_crf
+from eval_segmentation import batched_crf
 from src.modules.stego_modules  import *
 from train_segmentation import LitUnsupervisedSegmenter
 

@@ -108,6 +108,9 @@ def get_mean_IoU(preds, target):
         else:
             IoU.append(0)
 
+    if len(IoU) == 0:
+        return 0
+
     mean_IoU = sum(IoU) / len(IoU)
 
     return mean_IoU
