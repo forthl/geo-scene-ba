@@ -13,6 +13,7 @@ from sklearn.mixture import GaussianMixture
 from sklearn.cluster import DBSCAN
 import random
 import clusterAlgorithms
+import open3d as o3d
 
 
 def normalize_array_to_range(arr, range):
@@ -61,6 +62,20 @@ def create_projected_point_clouds(masked_depths):
         point_cloud = project_disparity_to_3d(mask)
         point_clouds.append(point_cloud)
     return point_clouds
+
+def unproject_point_cloud(data):
+    focal_length_x = 2262.52
+    cx = 1096.98
+    cy = 513.137
+    focal_length_y = 2265.3017905988554
+
+    data = np.transpose(data)
+
+    for point in data:
+        point[0] = int(round((point[0] * focal_length_x / point[2]) + cx))
+        point[1] = int(round((point[1] * focal_length_y / point[2]) + cy))
+
+    return data.astype('int')
 
 def project_disparity_to_3d(disparity_map):
     focal_length_x = 2262.52
@@ -239,22 +254,39 @@ def DBSCAN_clustering(data, image_shape, epsilon, min_samples):
     return labels, instance_mask
 
 def BGMM_Clustering(data, image_shape, depth_image, max_k=20):
+
+    # remove lonely points to denoise point cloud
+    data, inliersIdx = remove_point_cloud_outliers(data)
+    data = np.transpose(data)
+
+    # cluster points
     cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=20)
     labels, _, _ = cl.find_clusters()
     labels += 1
 
-    # unproject labeled data
+    # unproject points to find original image coordinates
+    data = unproject_point_cloud(data)
+
+    # assign labels to instance_mask
     instance_mask = np.zeros(image_shape)
-    valid_indices = np.where(depth_image != 0)
-    for index, valid in enumerate(np.transpose(valid_indices)):
-        instance_mask[valid[0], valid[1]] = labels[index]
+    for i, point in enumerate(data):
+        instance_mask[point[1], point[0]] = (labels[i] + 1) * 255 / len(np.unique(labels))
 
     return labels, instance_mask
 
 def remove_point_cloud_outliers(point_cloud):
-    # TODO implement this
-    return point_cloud
+    # removes all points that don't have less than np_points in their neighborhood of radius
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(point_cloud)
+    pcd = pcd.voxel_down_sample(voxel_size=0.01)
 
+    # Radius outlier removal:
+    pcd_rad, ind_rad = pcd.remove_radius_outlier(nb_points=50, radius=1)
+    outlier_rad_pcd = pcd.select_by_index(ind_rad, invert=True)
+    outlier_rad_pcd.paint_uniform_color([1., 0., 1.])
+    pcdnp = np.asarray(pcd_rad.points)
+
+    return pcdnp, ind_rad
 
 def grayscale_to_random_color(grayscale, image_shape=(320, 320)):
     color_list = []
