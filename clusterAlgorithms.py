@@ -173,15 +173,6 @@ class BayesianGaussianMixtureModel:
         bgmm_weights = bgmm.weights_
         optimal_k = (np.round(bgmm_weights, 2) > 0.05).sum()
 
-        # Plot the data
-        fig, ax = plt.subplots()
-        ax.plot(range(len(bgmm_weights)), bgmm_weights)
-        ax.set_xlabel(r'Number of clusters, $k$')
-        ax.set_ylabel('weights')
-        ax.set_xticks(range(len(bgmm_weights)))
-
-        print('Estimated number of clusters: ' + str(optimal_k))
-
         return optimal_k
 
     def bgmm_clustering(self, k):

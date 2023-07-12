@@ -119,7 +119,7 @@ def my_app(cfg: DictConfig) -> None:
                 masks = maskD.get_segmentation_masks(plotted_img)
                 masks.pop(0) # remove the first element which is the mask containing pixels which are classes with no atributtes(e.g. road buildingi)
                 masked_depths = maskD.get_masked_depth(depth_img, masks)
-                point_clouds = maskD.create_point_clouds(masked_depths)
+                point_clouds = maskD.create_projected_point_clouds(masked_depths)
 
                 #hyperparameters for dbscan
                 epsilon = 15
