@@ -47,7 +47,7 @@ def my_app(cfg: DictConfig) -> None:
     for i in range(1000):
         color = list(np.random.choice(range(256), size=3))
         color_list.append(color)
-
+            
     depth_transform_res = cfg.res
 
     if cfg.resize_to_original:
@@ -91,7 +91,7 @@ def my_app(cfg: DictConfig) -> None:
                 real_img = real_img[0]
                 instance = instance[0].numpy()
                 instance = eval_utils.normalize_labels(instance)
-                # instance_img = grayscale_to_random_color(instance, image_shape, color_list).astype('uint8')
+                instance_img = grayscale_to_random_color(instance, image_shape, color_list).astype('uint8')
                 depth_img = transToImg(depth[0])
 
                 feats, code1 = par_model(img)
@@ -106,18 +106,17 @@ def my_app(cfg: DictConfig) -> None:
                 # non crf cluster predictions
                 #-----------------------------
                 
-                cluster_preds = cluster_probs.argmax(1)
+                # cluster_preds = cluster_probs.argmax(1)
 
                 #--------------------------------------------
                 # workaround for batch crf as pool.map won't work on my PC
                 #--------------------------------------------
-                # res = []
-
-                # for re in map(_apply_crf, zip(img.detach().cpu(), cluster_probs.detach().cpu())):
-                #     res.append(re)
-                # 
-                # res = np.array(res)
-                # cluster_preds = torch.cat([torch.from_numpy(arr).unsqueeze(0) for arr in res], dim=0).argmax(1).cuda()
+                res = []
+                for re in map(_apply_crf, zip(img.detach().cpu(), cluster_probs.detach().cpu())):
+                    res.append(re)
+                
+                res = np.array(res)
+                cluster_preds = torch.cat([torch.from_numpy(arr).unsqueeze(0) for arr in res], dim=0).argmax(1).cuda()
 
                 #--------------
                 # batched crf
@@ -166,7 +165,7 @@ def my_app(cfg: DictConfig) -> None:
 
                 # fig, axeslist = plt.subplots(ncols=3, nrows=3)
                 for k in return_dict.keys():
-                    labels = len(np.unique(return_dict[k]))
+                    labels = len(np.unique(return_dict[k])) - 1
                     instance_mask = return_dict[k]
                     
                     instance_mask = np.where(instance_mask != 0, instance_mask + current_num_instances, 0)
@@ -174,12 +173,12 @@ def my_app(cfg: DictConfig) -> None:
                     
                     instance_mask_clustered = np.add(instance_mask_clustered, instance_mask)
 
-                # Image.fromarray(grayscale_to_random_color(instance_mask_clustered,image_shape, color_list).astype(np.uint8)).show()
 
 
                 assignments = eval_utils.get_assigment(instance_mask_clustered,
                                                        instance)
 
+                
                 instance_mask_pred = np.zeros(image_shape)
 
                 for i, val in enumerate(assignments[1]):
@@ -187,14 +186,24 @@ def my_app(cfg: DictConfig) -> None:
                     instance_mask_pred = instance_mask_pred + mask
 
                 mean_IoU = eval_utils.get_mean_IoU(instance_mask_pred, instance)
+                
+                    
                 print(mean_IoU)
 
-                boundingBoxes = eval_utils.get_bounding_boxes(instance_mask_pred).values()
+                if mean_IoU < 0.2 or mean_IoU > 0.6:
+                    boundingBoxes = eval_utils.get_bounding_boxes(instance_mask_pred).values()
+                    tar_boundingBoxes = eval_utils.get_bounding_boxes(instance).values()
+                
 
-                img_boxes = eval_utils.drawBoundingBoxes(real_img.numpy(), boundingBoxes, (0, 255, 0))
-                # Image.fromarray(img_boxes.astype('uint8')).show()
+                    img_boxes = eval_utils.drawBoundingBoxes(real_img.clone().numpy(), boundingBoxes, (0, 255, 0))
+                    tar_boxes = eval_utils.drawBoundingBoxes(real_img.clone().numpy(), tar_boundingBoxes, (255, 0, 0))
 
-                f = open("../results/predictions/IoU.txt", "a")
+                    Image.fromarray(grayscale_to_random_color(instance_mask_pred, image_shape, color_list).astype(np.uint8)).save("../results/failure/"+ str(i) + "_" + str(mean_IoU) + "_"  + "preds_cluster.jpeg")
+                    Image.fromarray(img_boxes.astype('uint8')).save("../results/failure/" + str(i) + "_" + str(mean_IoU) + "_"  +"preds_bb.jpeg")
+                    Image.fromarray(instance_img).save("../results/failure/" + str(i) + "_" + str(mean_IoU) + "_"  +"tar_cluster.jpeg")
+                    Image.fromarray(tar_boxes.astype('uint8')).save("../results/failure/" + str(i) + "_" + str(mean_IoU) + "_"  +"tar_bb.jpeg")
+                
+                f = open("../results/failure/IoU.txt", "a")
                 f.write(str(mean_IoU)+" , ")
                 f.close()
 
