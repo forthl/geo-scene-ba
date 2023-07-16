@@ -22,6 +22,14 @@ def normalize_array_to_range(arr, range):
     normalized_arr = ((arr - min_val) / (max_val - min_val)) * range
     return normalized_arr
 
+# get masks from segmentations from gep_seg
+def get_segmentation_masks_geo_seg(geo_seg):
+    masks = []
+    for c in np.unique(geo_seg):
+        segmentation = geo_seg == c
+        masks.append(segmentation)
+    return masks
+
 # get masks from segmentations
 def get_segmentation_masks(img):
     masks = []
