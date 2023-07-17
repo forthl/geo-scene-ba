@@ -160,11 +160,10 @@ def labelSegments(n: Node, range_image, labels, label):
 
                 beta = np.arctan2(d2 * np.sin(phi), d1 - d2 * np.cos(phi))
 
-                if beta > 0.04:
+                if beta > 0.15:
                     q.append(nn)
 
         q = q[1:]
-        print(len(q))
 
 
 def find_NNs(segments: torch.Tensor, mask: torch.Tensor):

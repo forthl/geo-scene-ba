@@ -23,6 +23,7 @@ from multiprocessing import Pool, Manager, Process
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 
+
 def worker(procnum, return_dict, depth_array, mask):
     """worker function"""
     rel_depth = depth_array * mask
@@ -47,7 +48,7 @@ def my_app(cfg: DictConfig) -> None:
     for i in range(1000):
         color = list(np.random.choice(range(256), size=3))
         color_list.append(color)
-            
+
     depth_transform_res = cfg.res
 
     if cfg.resize_to_original:
@@ -160,7 +161,7 @@ def my_app(cfg: DictConfig) -> None:
                 for proc in jobs:
                     proc.join()
 
-                instance_mask_clustered = np.zeros(depth_array.shape)
+                geo_seg_masks = np.zeros(depth_array.shape)
                 current_num_instances = 0
 
                 # fig, axeslist = plt.subplots(ncols=3, nrows=3)
@@ -171,13 +172,38 @@ def my_app(cfg: DictConfig) -> None:
                     instance_mask = np.where(instance_mask != 0, instance_mask + current_num_instances, 0)
                     current_num_instances += labels
                     
-                    instance_mask_clustered = np.add(instance_mask_clustered, instance_mask)
+                    geo_seg_masks = np.add(geo_seg_masks, instance_mask)
+                    
+                
+                masks = maskD.get_segmentation_masks_geo_seg(geo_seg_masks)
+                masks.pop(0) # remove the first element which is the mask containing pixels which are classes with no atributtes(e.g. road buildingi)
+                masked_depths = maskD.get_masked_depth(depth_img, masks)
+                point_clouds = maskD.create_point_clouds(masked_depths)
 
+                #hyperparameters for dbscan
+                epsilon = 15
+                min_samples = 9
+
+                instance_mask_clustered = np.zeros(image_shape)
+                current_num_instances = 0
+
+                for point_cloud in point_clouds:
+
+                    if point_cloud.shape[0] == 0:  # TODO check if it is an empty point cloud. Look into this bug later
+                        continue
+
+                    labels, instance_mask = [], []
+                    labels, instance_mask = maskD.DBSCAN_clustering(point_cloud, image_shape=image_shape,  #insert clustering algorithmn here
+                                                                    epsilon=epsilon, min_samples=min_samples)
+
+                    num_clusters = len(set(labels)) - 1
+                    instance_mask = np.where(instance_mask != 0, instance_mask + current_num_instances, 0)
+                    current_num_instances += num_clusters
+                    instance_mask_clustered = np.add(instance_mask_clustered, instance_mask)
 
                 assignments = eval_utils.get_assigment(instance_mask_clustered,
                                                        instance)
 
-                
                 instance_mask_pred = np.zeros(image_shape)
 
                 for i, val in enumerate(assignments[1]):
@@ -185,11 +211,8 @@ def my_app(cfg: DictConfig) -> None:
                     instance_mask_pred = instance_mask_pred + mask
 
                 mean_IoU = eval_utils.get_mean_IoU(instance_mask_pred, instance)
-                
-                    
-                print(mean_IoU)
 
-                if mean_IoU < 0.3 or mean_IoU > 0.7:
+                if mean_IoU < 0.3 or mean_IoU > 0.6:
                     boundingBoxes = eval_utils.get_bounding_boxes(instance_mask_pred).values()
                     tar_boundingBoxes = eval_utils.get_bounding_boxes(instance).values()
                 
@@ -197,15 +220,15 @@ def my_app(cfg: DictConfig) -> None:
                     img_boxes = eval_utils.drawBoundingBoxes(real_img.clone().numpy(), boundingBoxes, (0, 255, 0))
                     tar_boxes = eval_utils.drawBoundingBoxes(real_img.clone().numpy(), tar_boundingBoxes, (255, 0, 0))
 
-                    Image.fromarray(real_img.clone().numpy()).save("../results/endrit+valer/"+ str(i) + "_" + str(mean_IoU) + "_"  + "img.jpeg")
-                    plotted_img.save("../results/endrit+valer/"+ str(i) + "_" + str(mean_IoU) + "_"  + "stego.jpeg")
-                    Image.fromarray(np.sum(np.array(masked_depths), axis=0, dtype=np.uint8)).save("../results/endrit+valer/"+ str(i) + "_" + str(mean_IoU) + "_"  + "disp.jpeg")
-                    Image.fromarray(grayscale_to_random_color(instance_mask_pred, image_shape, color_list).astype(np.uint8)).save("../results/endrit+valer/"+ str(i) + "_" + str(mean_IoU) + "_"  + "preds_cluster.jpeg")
-                    Image.fromarray(img_boxes.astype('uint8')).save("../results/endrit+valer/" + str(i) + "_" + str(mean_IoU) + "_"  +"preds_bb.jpeg")
-                    Image.fromarray(instance_img).save("../results/endrit+valer/" + str(i) + "_" + str(mean_IoU) + "_"  +"tar_cluster.jpeg")
-                    Image.fromarray(tar_boxes.astype('uint8')).save("../results/endrit+valer/" + str(i) + "_" + str(mean_IoU) + "_"  +"tar_bb.jpeg")
-                
-                f = open("../results/endrit+valer/IoU.txt", "a")
+                    Image.fromarray(real_img.clone().numpy()).save("../results/endrit+valer_dual_power/"+ str(i) + "_" + str(mean_IoU) + "_"  + "img.jpeg")
+                    plotted_img.save("../results/endrit+valer_dual_power/"+ str(i) + "_" + str(mean_IoU) + "_"  + "stego.jpeg")
+                    Image.fromarray(np.sum(np.array(masked_depths), axis=0, dtype=np.uint8)).save("../results/endrit+valer_dual_power/"+ str(i) + "_" + str(mean_IoU) + "_"  + "disp.jpeg")
+                    Image.fromarray(grayscale_to_random_color(instance_mask_pred, image_shape, color_list).astype(np.uint8)).save("../results/endrit+valer_dual_power/"+ str(i) + "_" + str(mean_IoU) + "_"  + "preds_cluster.jpeg")
+                    Image.fromarray(img_boxes.astype('uint8')).save("../results/endrit+valer_dual_power/" + str(i) + "_" + str(mean_IoU) + "_"  +"preds_bb.jpeg")
+                    Image.fromarray(instance_img).save("../results/endrit+valer_dual_power/" + str(i) + "_" + str(mean_IoU) + "_"  +"tar_cluster.jpeg")
+                    Image.fromarray(tar_boxes.astype('uint8')).save("../results/endrit+valer_dual_power/" + str(i) + "_" + str(mean_IoU) + "_"  +"tar_bb.jpeg")
+
+                f = open("../results/endrit+valer_dual_power/IoU.txt", "a")
                 f.write(str(mean_IoU)+" , ")
                 f.close()
 
@@ -244,7 +267,7 @@ def resize_mask(mask, size):
     mask = mask.numpy()
 
     plotted_img = Image.fromarray(mask[0].astype(np.uint8))
-    # plotted_img.show()
+    plotted_img.show()
 
     return mask
 
