@@ -14,6 +14,7 @@ from sklearn.cluster import DBSCAN
 import random
 import clusterAlgorithms
 import open3d as o3d
+import cv2
 
 
 def normalize_array_to_range(arr, range):
@@ -39,6 +40,7 @@ def get_segmentation_masks(img):
     I = np.asarray(I)
     for c in np.unique(I):
         segmentation = I == c
+        segmentation = cv2.resize(segmentation.astype('uint8'), (2048, 1024), interpolation=cv2.INTER_NEAREST)
         masks.append(segmentation)
     return masks
 
@@ -47,7 +49,7 @@ def get_segmentation_masks(img):
 def get_masked_depth(depth_img, masks):
     depth_array = np.asarray(depth_img).astype(np.float32)
     depth_array[depth_array > 0] = (depth_array[depth_array > 0] - 1.0) / 256.0
-
+    depth_array = cv2.resize(depth_array, (2048, 1024), cv2.INTER_CUBIC)
     # depth_array = normalize_array_to_range(depth_array)
     masked_depths = []
     for mask in masks:
@@ -264,8 +266,12 @@ def DBSCAN_clustering(data, image_shape, epsilon, min_samples):
 def BGMM_Clustering(data, image_shape, depth_image, max_k=20):
 
     # remove lonely points to denoise point cloud
-    data, inliersIdx = remove_point_cloud_outliers(data)
-    data = np.transpose(data)
+    filtered_data, inliersIdx = remove_point_cloud_outliers(data)
+
+    if len(filtered_data < 2):
+        data = np.transpose(data)
+    else:
+        data = np.transpose(filtered_data)
 
     # cluster points
     cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=20)
@@ -276,11 +282,11 @@ def BGMM_Clustering(data, image_shape, depth_image, max_k=20):
     data = unproject_point_cloud(data)
 
     # assign labels to instance_mask
-    instance_mask = np.zeros(image_shape)
+    instance_mask = np.zeros((1024, 2048))
     for i, point in enumerate(data):
         instance_mask[point[1], point[0]] = (labels[i] + 1) * 255 / len(np.unique(labels))
-
-    return labels, instance_mask
+    instance_mask_small = cv2.resize(instance_mask, (320, 320), cv2.INTER_NEAREST)
+    return labels, instance_mask_small
 
 def remove_point_cloud_outliers(point_cloud):
     # removes all points that don't have less than np_points in their neighborhood of radius
@@ -289,7 +295,7 @@ def remove_point_cloud_outliers(point_cloud):
     pcd = pcd.voxel_down_sample(voxel_size=0.01)
 
     # Radius outlier removal:
-    pcd_rad, ind_rad = pcd.remove_radius_outlier(nb_points=50, radius=1)
+    pcd_rad, ind_rad = pcd.remove_radius_outlier(nb_points=15, radius=1)
     outlier_rad_pcd = pcd.select_by_index(ind_rad, invert=True)
     outlier_rad_pcd.paint_uniform_color([1., 0., 1.])
     pcdnp = np.asarray(pcd_rad.points)
