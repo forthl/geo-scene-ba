@@ -16,7 +16,7 @@ def get_segmentation_masks(img_path):
     I = cv2.resize(I, (320, 320), interpolation=cv2.INTER_NEAREST)
     for c in np.unique(I):
         segmentation = I == c
-        segmentation = cv2.resize(segmentation.astype('uint8'), (2048, 1024), interpolation=cv2.INTER_NEAREST)
+        #segmentation = cv2.resize(segmentation.astype('uint8'), (2048, 1024), interpolation=cv2.INTER_NEAREST)
         masks.append(segmentation)
     return masks
 
@@ -39,7 +39,7 @@ def remove_point_cloud_outliers(point_cloud):
     pcd = pcd.voxel_down_sample(voxel_size=0.01)
 
     # Radius outlier removal:
-    pcd_rad, ind_rad = pcd.remove_radius_outlier(nb_points=20, radius=1)
+    pcd_rad, ind_rad = pcd.remove_radius_outlier(nb_points=7, radius=1.8)
     outlier_rad_pcd = pcd.select_by_index(ind_rad, invert=True)
     outlier_rad_pcd.paint_uniform_color([1., 0., 1.])
     pcdnp = np.asarray(pcd_rad.points)
@@ -52,8 +52,8 @@ def remove_point_cloud_outliers(point_cloud):
 def get_masked_depth(disparity_path, masks):
     disparity_array = cv2.imread(disparity_path, cv2.IMREAD_UNCHANGED).astype(np.float32)
     disparity_array[disparity_array > 0] = (disparity_array[disparity_array > 0] - 1.0) / 256.0
-    #disparity_array = cv2.resize(disparity_array, (320, 320), cv2.INTER_NEAREST)
-    disparity_array = cv2.resize(disparity_array, (2048, 1024), cv2.INTER_CUBIC)
+    disparity_array = cv2.resize(disparity_array, (320, 320), cv2.INTER_NEAREST)
+    #disparity_array = cv2.resize(disparity_array, (2048, 1024), cv2.INTER_CUBIC)
     masked_depths = []
     for mask in masks:
         seg_masked = np.where(mask, disparity_array, 0)
@@ -113,17 +113,14 @@ def get_clusters(masked_depths, sampleIdx):
 
 def get_projected_clusters(masked_depths, sampleIdx):
     data = create_projected_point_clouds([masked_depths[sampleIdx]])
-    temp, _ = remove_point_cloud_outliers(data[0])
 
+    print(len(data[0]))
+    temp, _ = remove_point_cloud_outliers(data[0])
+    print(len(temp))
     if len(temp) > 2:
         data = np.transpose(temp)
     else:
         data = np.transpose(data[0])
-
-    print(len(temp))
-    print(len(np.transpose(data)))
-
-
 
     # cl = clusterAlgorithms.Kmeans(data=data, max_k=20)
     # cl = clusterAlgorithms.GaussianMixtureModel(data=data, max_k=20)
@@ -136,10 +133,12 @@ def get_projected_clusters(masked_depths, sampleIdx):
     # unproject labeled data
     unp = unproject_point_cloud(data)
 
-    instance_mask = np.zeros((1024, 2048))
+    print(np.unique(labels))
+
+    instance_mask = np.zeros((320, 320))
     for i, point in enumerate(unp):
         instance_mask[point[1], point[0]] = (labels[i] + 1) * 255 / len(np.unique(labels))
-    instance_mask_small = cv2.resize(instance_mask, (320, 320), cv2.INTER_NEAREST)
+    #instance_mask_small = cv2.resize(instance_mask, (320, 320), cv2.INTER_NEAREST)
 
     #fig, ax = plt.subplots()
     #ax.imshow(masked_depths[sampleIdx])
@@ -149,9 +148,9 @@ def get_projected_clusters(masked_depths, sampleIdx):
     ax2.imshow(instance_mask)
     plt.show()
 
-    fig, ax3 = plt.subplots()
-    ax3.imshow(instance_mask_small)
-    plt.show()
+    #fig, ax3 = plt.subplots()
+    #ax3.imshow(instance_mask_small)
+    #plt.show()
     #Image.fromarray(np.uint8(instance_mask)).convert('RGB').show()
     return labels, centroids, data#labels, centroids, data
 
@@ -167,11 +166,13 @@ def project_disparity_to_3d(disparity_map):
     # Generate a grid of pixel coordinates
     grid_x, grid_y = np.meshgrid(np.arange(width), np.arange(height))
 
+
     # Filter out points with disparity value of 0
     valid_indices = np.where(disparity_map != 0)
+
     depth = (baseline * focal_length_x) / disparity_map[valid_indices]
-    points_x = (grid_x[valid_indices] - cx) * depth / focal_length_x
-    points_y = (grid_y[valid_indices] - cy) * depth / focal_length_y
+    points_x = (grid_x[valid_indices] * 1024.0/320.0 - cx) * depth / focal_length_x
+    points_y = (grid_y[valid_indices] * 2048.0/320.0 - cy) * depth / focal_length_y
     points_z = depth
 
     # Stack the coordinates into a point cloud
@@ -190,8 +191,8 @@ def unproject_point_cloud(data):
     data = np.transpose(data)
 
     for point in data:
-        point[0] = int(round((point[0] * focal_length_x / point[2]) + cx))
-        point[1] = int(round((point[1] * focal_length_y / point[2]) + cy))
+        point[0] = int(round(((point[0] * focal_length_x / point[2]) + cx) * (320.0/1024.0)))
+        point[1] = int(round(((point[1] * focal_length_y / point[2]) + cy) * (320.0/2048.0)))
 
     return data.astype('int')
 
@@ -211,9 +212,9 @@ def visualize_projected_clusters(labels, centroids, data):
     ax = plt.axes(projection='3d')
     ax.scatter3D(data[0], data[1], data[2], c=labels)
     #ax.scatter3D(c[0], c[1], c[2], 'black');
-    plt.xlim(-6, 6)
-    plt.ylim(-2, 2)
-    ax.set_zlim(0, 32)
+    #plt.xlim(-6, 6)
+    #plt.ylim(-2, 2)
+    #ax.set_zlim(0, 32)
 
     # Set labels and title
     ax.set_xlabel('X')
@@ -227,7 +228,7 @@ if __name__ == '__main__':
     img_path = "tmp_data/aachen_000000_000019_gtFine_color.png"
     disparity_path = "tmp_data/aachen_000000_000019_disparity.png"
 
-    sampleIdx = 1  # 1 for cars, 10 for streetlamps, 6 for street
+    sampleIdx = 10  # 1 for cars, 10 for streetlamps, 6 for street
     masks = get_segmentation_masks(img_path)
     #masked_disparities = get_masked_disparity(disparity_path, masks)
     masked_depths = get_masked_depth(disparity_path, masks)
@@ -236,4 +237,4 @@ if __name__ == '__main__':
     labels2, centroids2, data2 = get_projected_clusters(masked_depths, sampleIdx)
 
     #visualize_clusters(labels1, centroids1, data1)
-    #visualize_projected_clusters(labels2, centroids2, data2)
+    visualize_projected_clusters(labels2, centroids2, data2)

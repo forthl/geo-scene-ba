@@ -40,7 +40,7 @@ def get_segmentation_masks(img):
     I = np.asarray(I)
     for c in np.unique(I):
         segmentation = I == c
-        segmentation = cv2.resize(segmentation.astype('uint8'), (2048, 1024), interpolation=cv2.INTER_NEAREST)
+        #segmentation = cv2.resize(segmentation.astype('uint8'), (2048, 1024), interpolation=cv2.INTER_NEAREST)
         masks.append(segmentation)
     return masks
 
@@ -49,7 +49,7 @@ def get_segmentation_masks(img):
 def get_masked_depth(depth_img, masks):
     depth_array = np.asarray(depth_img).astype(np.float32)
     depth_array[depth_array > 0] = (depth_array[depth_array > 0] - 1.0) / 256.0
-    depth_array = cv2.resize(depth_array, (2048, 1024), cv2.INTER_CUBIC)
+    #depth_array = cv2.resize(depth_array, (2048, 1024), cv2.INTER_CUBIC)
     # depth_array = normalize_array_to_range(depth_array)
     masked_depths = []
     for mask in masks:
@@ -82,8 +82,8 @@ def unproject_point_cloud(data):
     data = np.transpose(data)
 
     for point in data:
-        point[0] = int(round((point[0] * focal_length_x / point[2]) + cx))
-        point[1] = int(round((point[1] * focal_length_y / point[2]) + cy))
+        point[0] = int(round(((point[0] * focal_length_x / point[2]) + cx) * (320.0 / 1024.0)))
+        point[1] = int(round(((point[1] * focal_length_y / point[2]) + cy) * (320.0 / 2048.0)))
 
     return data.astype('int')
 
@@ -102,8 +102,8 @@ def project_disparity_to_3d(disparity_map):
     # Filter out points with disparity value of 0
     valid_indices = np.where(disparity_map != 0)
     depth = (baseline * focal_length_x) / disparity_map[valid_indices]
-    points_x = (grid_x[valid_indices] - cx) * depth / focal_length_x
-    points_y = (grid_y[valid_indices] - cy) * depth / focal_length_y
+    points_x = (grid_x[valid_indices] * 1024.0 / 320.0 - cx) * depth / focal_length_x
+    points_y = (grid_y[valid_indices] * 2048.0 / 320.0 - cy) * depth / focal_length_y
     points_z = depth
 
     # Stack the coordinates into a point cloud
@@ -282,10 +282,10 @@ def BGMM_Clustering(data, image_shape, depth_image, max_k=20):
     data = unproject_point_cloud(data)
 
     # assign labels to instance_mask
-    instance_mask = np.zeros((1024, 2048))
+    instance_mask = np.zeros(image_shape)
     for i, point in enumerate(data):
         instance_mask[point[1], point[0]] = (labels[i] + 1) * 255 / len(np.unique(labels))
-    instance_mask_small = cv2.resize(instance_mask, (320, 320), cv2.INTER_NEAREST)
+    #instance_mask_small = cv2.resize(instance_mask, (320, 320), cv2.INTER_NEAREST)
     return labels, instance_mask_small
 
 def remove_point_cloud_outliers(point_cloud):
@@ -295,7 +295,7 @@ def remove_point_cloud_outliers(point_cloud):
     pcd = pcd.voxel_down_sample(voxel_size=0.01)
 
     # Radius outlier removal:
-    pcd_rad, ind_rad = pcd.remove_radius_outlier(nb_points=15, radius=1)
+    pcd_rad, ind_rad = pcd.remove_radius_outlier(nb_points=7, radius=1.8)
     outlier_rad_pcd = pcd.select_by_index(ind_rad, invert=True)
     outlier_rad_pcd.paint_uniform_color([1., 0., 1.])
     pcdnp = np.asarray(pcd_rad.points)
