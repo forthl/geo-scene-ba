@@ -1,4 +1,4 @@
-import numpy as np # dont remove this otherwise gets stuck in infinite loop
+import numpy as np  # dont remove this otherwise gets stuck in infinite loop
 import os
 from os.path import join
 from depth_dataset import ContrastiveDepthDataset
@@ -23,11 +23,13 @@ from multiprocessing import Pool, Manager, Process
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 
+
 def worker(procnum, return_dict, depth_array, mask):
     """worker function"""
     rel_depth = depth_array * mask
-    
+
     return_dict[procnum] = labelRangeImage(rel_depth)
+
 
 @hydra.main(config_path="configs", config_name="eval_config.yml")
 def my_app(cfg: DictConfig) -> None:
@@ -43,11 +45,13 @@ def my_app(cfg: DictConfig) -> None:
         print(OmegaConf.to_yaml(model.cfg))
 
     color_list = []
-    color_list.append((0, 0, 0))  # 0 values are not part of any instance thus black
+    # 0 values are not part of any instance thus black
+    color_list.append((0, 0, 0))
+    
     for i in range(1000):
         color = list(np.random.choice(range(256), size=3))
         color_list.append(color)
-            
+
     depth_transform_res = cfg.res
 
     if cfg.resize_to_original:
@@ -91,79 +95,89 @@ def my_app(cfg: DictConfig) -> None:
                 real_img = real_img[0]
                 instance = instance[0].numpy()
                 instance = eval_utils.normalize_labels(instance)
-                instance_img = grayscale_to_random_color(instance, image_shape, color_list).astype('uint8')
+                instance_img = grayscale_to_random_color(
+                    instance, image_shape, color_list).astype('uint8')
                 depth_img = transToImg(depth[0])
 
                 feats, code1 = par_model(img)
                 feats, code2 = par_model(img.flip(dims=[3]))
                 code = (code1 + code2.flip(dims=[3])) / 2
-                code = F.interpolate(code, img.shape[-2:], mode='bilinear', align_corners=False)
+                code = F.interpolate(
+                    code, img.shape[-2:], mode='bilinear', align_corners=False)
 
-                linear_probs = torch.log_softmax(model.linear_probe(code), dim=1).cpu()
-                cluster_probs = model.cluster_probe(code, 2, log_probs=True).cpu()
+                linear_probs = torch.log_softmax(
+                    model.linear_probe(code), dim=1).cpu()
+                cluster_probs = model.cluster_probe(
+                    code, 2, log_probs=True).cpu()
 
-                #-----------------------------
+                # -----------------------------
                 # non crf cluster predictions
-                #-----------------------------
-                
+                # -----------------------------
+
                 # cluster_preds = cluster_probs.argmax(1)
 
-                #--------------------------------------------
+                # --------------------------------------------
                 # workaround for batch crf as pool.map won't work on my PC
-                #--------------------------------------------
+                # --------------------------------------------
                 res = []
                 for re in map(_apply_crf, zip(img.detach().cpu(), cluster_probs.detach().cpu())):
                     res.append(re)
-                
-                res = np.array(res)
-                cluster_preds = torch.cat([torch.from_numpy(arr).unsqueeze(0) for arr in res], dim=0).argmax(1).cuda()
 
-                #--------------
+                res = np.array(res)
+                cluster_preds = torch.cat([torch.from_numpy(arr).unsqueeze(
+                    0) for arr in res], dim=0).argmax(1).cuda()
+
+                # --------------
                 # batched crf
-                #-------------
+                # -------------
                 # cluster_preds = batched_crf(pool, img, cluster_probs).argmax(1).cuda()
 
                 model.test_cluster_metrics.update(cluster_preds, label)
-                
+
                 tb_metrics = {
                     **model.test_linear_metrics.compute(),
                     **model.test_cluster_metrics.compute(), }
 
-                plotted = model.label_cmap[model.test_cluster_metrics.map_clusters(cluster_preds.cpu())].astype(np.uint8)
+                plotted = model.label_cmap[model.test_cluster_metrics.map_clusters(
+                    cluster_preds.cpu())].astype(np.uint8)
                 plotted_img = Image.fromarray(plotted[0])
-                #plotted_img.show()
-                plotted_filtered = filter_classes_has_instance(plotted[0])#sets backgroung to 0
-                plotted_img = Image.fromarray(plotted_filtered.astype(np.uint8))
-                #plotted_img.show()
+                # plotted_img.show()
+                plotted_filtered = filter_classes_has_instance(
+                    plotted[0])  # sets backgroung to 0
+                plotted_img = Image.fromarray(
+                    plotted_filtered.astype(np.uint8))
+                # plotted_img.show()
 
-
-                if cfg.resize_to_original:
-                    plotted_filtered = resize_mask(plotted_filtered, image_shape)
-                    plotted_img = Image.fromarray(plotted_filtered[0].astype(np.uint8))
+                # if cfg.resize_to_original:
+                #     plotted_filtered = resize_mask(plotted_filtered, image_shape)
+                #     plotted_img = Image.fromarray(plotted_filtered[0].astype(np.uint8))
 
                 masks = maskD.get_segmentation_masks(plotted_img)
-                masks.pop(0) # remove the first element which is the mask containing pixels which are classes with no atributtes(e.g. road buildingi)
+                # remove the first element which is the mask containing pixels which are classes with no atributtes(e.g. road buildingi)
+                masks.pop(0)
                 masked_depths = maskD.get_masked_depth(depth_img, masks)
-                
+
                 depth_array = np.asarray(depth_img)
-                depth_array =  np.array(256 * depth_array / 0x0fff, dtype=np.float32)
-                
+                depth_array = np.array(
+                    256 * depth_array / 0x0fff, dtype=np.float32)
+
                 manager = Manager()
                 return_dict = manager.dict()
                 jobs = []
-
                 for i in range(len(masks)):
-                    p = Process(target=worker, args=(i, return_dict, depth_array, masks[i]))
+                    p = Process(target=worker, args=(
+                        i, return_dict, depth_array, masks[i]))
                     jobs.append(p)
                     p.start()
-    
+
                 for proc in jobs:
                     proc.join()
 
-                instance_mask_clustered = np.zeros(depth_array.shape)
-                current_num_instances = 0
-
+ 
+                current_num_instances = 0 
+                instance_mask_clustered = np.zeros(masks[0].shape)
                 # fig, axeslist = plt.subplots(ncols=3, nrows=3)
+                
                 for k in return_dict.keys():
                     labels = len(np.unique(return_dict[k])) - 1
                     instance_mask = return_dict[k]
@@ -177,36 +191,59 @@ def my_app(cfg: DictConfig) -> None:
                 assignments = eval_utils.get_assigment(instance_mask_clustered,
                                                        instance)
 
-                
+
                 instance_mask_pred = np.zeros(image_shape)
 
                 for i, val in enumerate(assignments[1]):
-                    mask = np.where(instance_mask_clustered == val, assignments[0][i], 0)
+                    mask = np.where(instance_mask_clustered ==
+                                    val, assignments[0][i], 0)
                     instance_mask_pred = instance_mask_pred + mask
 
-                mean_IoU = eval_utils.get_mean_IoU(instance_mask_pred, instance)
-                
-                    
-                print(mean_IoU)
+                mean_IoU = eval_utils.get_mean_IoU(
+                    instance_mask_pred, instance)
 
-                if mean_IoU < 0.3 or mean_IoU > 0.7:
-                    boundingBoxes = eval_utils.get_bounding_boxes(instance_mask_pred).values()
-                    tar_boundingBoxes = eval_utils.get_bounding_boxes(instance).values()
-                
+                avg_percision = eval_utils.average_percision(
+                    instance_mask_pred, instance)
 
-                    img_boxes = eval_utils.drawBoundingBoxes(real_img.clone().numpy(), boundingBoxes, (0, 255, 0))
-                    tar_boxes = eval_utils.drawBoundingBoxes(real_img.clone().numpy(), tar_boundingBoxes, (255, 0, 0))
+                avg_recall = eval_utils.average_recall(instance_mask_pred, instance)
 
-                    Image.fromarray(real_img.clone().numpy()).save("../results/endrit+valer/"+ str(i) + "_" + str(mean_IoU) + "_"  + "img.jpeg")
-                    plotted_img.save("../results/endrit+valer/"+ str(i) + "_" + str(mean_IoU) + "_"  + "stego.jpeg")
-                    Image.fromarray(np.sum(np.array(masked_depths), axis=0, dtype=np.uint8)).save("../results/endrit+valer/"+ str(i) + "_" + str(mean_IoU) + "_"  + "disp.jpeg")
-                    Image.fromarray(grayscale_to_random_color(instance_mask_pred, image_shape, color_list).astype(np.uint8)).save("../results/endrit+valer/"+ str(i) + "_" + str(mean_IoU) + "_"  + "preds_cluster.jpeg")
-                    Image.fromarray(img_boxes.astype('uint8')).save("../results/endrit+valer/" + str(i) + "_" + str(mean_IoU) + "_"  +"preds_bb.jpeg")
-                    Image.fromarray(instance_img).save("../results/endrit+valer/" + str(i) + "_" + str(mean_IoU) + "_"  +"tar_cluster.jpeg")
-                    Image.fromarray(tar_boxes.astype('uint8')).save("../results/endrit+valer/" + str(i) + "_" + str(mean_IoU) + "_"  +"tar_bb.jpeg")
-                
+                print('mIoU: ' + str(mean_IoU) + '\t\t ap: ' + str(avg_percision) + '\t\t ar: ' + str(avg_recall))
+
+                if mean_IoU > 0.9:
+                    boundingBoxes = eval_utils.get_bounding_boxes(
+                        instance_mask_pred).values()
+                    tar_boundingBoxes = eval_utils.get_bounding_boxes(
+                        instance).values()
+
+                    img_boxes = eval_utils.drawBoundingBoxes(
+                        real_img.clone().numpy(), boundingBoxes, (0, 255, 0))
+                    tar_boxes = eval_utils.drawBoundingBoxes(
+                        real_img.clone().numpy(), tar_boundingBoxes, (255, 0, 0))
+
+                    Image.fromarray(real_img.clone().numpy()).save(
+                        "../results/endrit+valer/" + str(i) + "_" + str(mean_IoU) + "_" + "img.jpeg")
+                    plotted_img.save(
+                        "../results/endrit+valer/" + str(i) + "_" + str(mean_IoU) + "_" + "stego.jpeg")
+                    # Image.fromarray(np.sum(np.array(masked_depths), axis=0, dtype=np.uint8)).save("../results/endrit+valer/"+ str(i) + "_" + str(mean_IoU) + "_"  + "disp.jpeg")
+                    Image.fromarray(grayscale_to_random_color(instance_mask_pred, image_shape, color_list).astype(
+                        np.uint8)).save("../results/endrit+valer/" + str(i) + "_" + str(mean_IoU) + "_" + "preds_cluster.jpeg")
+                    Image.fromarray(img_boxes.astype('uint8')).save(
+                        "../results/endrit+valer/" + str(i) + "_" + str(mean_IoU) + "_" + "preds_bb.jpeg")
+                    Image.fromarray(instance_img).save(
+                        "../results/endrit+valer/" + str(i) + "_" + str(mean_IoU) + "_" + "tar_cluster.jpeg")
+                    Image.fromarray(tar_boxes.astype('uint8')).save(
+                        "../results/endrit+valer/" + str(i) + "_" + str(mean_IoU) + "_" + "tar_bb.jpeg")
+
                 f = open("../results/endrit+valer/IoU.txt", "a")
                 f.write(str(mean_IoU)+" , ")
+                f.close()
+
+                f = open("../results/endrit+valer/mAP.txt", "a")
+                f.write(str(avg_percision)+" , ")
+                f.close()
+
+                f = open("../results/endrit+valer/mAR.txt", "a")
+                f.write(str(avg_recall)+" , ")
                 f.close()
 
 
@@ -236,10 +273,11 @@ def filter_classes_has_instance(mask):
 def resize_mask(mask, size):
     mask = torch.tensor(mask.astype('float32'))
     if mask.ndim == 3:
-        mask = torch.unsqueeze(mask,0)
+        mask = torch.unsqueeze(mask, 0)
     mask = mask.permute((0, 3, 1, 2))
 
-    mask = F.interpolate(input=mask, size=size, mode='bilinear', align_corners=False)
+    mask = F.interpolate(input=mask, size=size,
+                         mode='bilinear', align_corners=False)
     mask = mask.permute(0, 2, 3, 1)
     mask = mask.numpy()
 

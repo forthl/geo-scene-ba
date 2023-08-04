@@ -10,7 +10,7 @@ import pydensecrf.densecrf as dcrf
 import pydensecrf.utils as utils
 import torchvision.transforms.functional as VF
 
-from src.utils.stego_utils import unnorm
+from utils import unnorm
 
 MAX_ITER = 10
 POS_W = 3
