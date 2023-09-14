@@ -27,7 +27,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 def my_app(cfg: DictConfig) -> None:
     pytorch_data_dir = cfg.pytorch_data_dir
     result_directory_path = cfg.results_dir
-    result_dir = join(result_directory_path, "results/predictions/BGMM/")
+    result_dir = join(result_directory_path, "results/predictions/Semantic_mask/")
     os.makedirs(join(result_dir, "Metrics"), exist_ok=True)
     os.makedirs(join(result_dir, "real_img"), exist_ok=True)
     os.makedirs(join(result_dir, "segmentation_target"), exist_ok=True)
@@ -75,16 +75,15 @@ def my_app(cfg: DictConfig) -> None:
     else:
         par_model = model.net
 
-
-    count_naming=160
-    count=0
+    count_naming = 378
+    count = 0
 
     # TODO Try to patch the image into 320x320 and then feed it into the transformer
     for i, batch in enumerate(tqdm(loader)):
-        if count<=159:
-            count+=1
+        if count <= 377:
+            count += 1
             continue
-            
+
         with (torch.no_grad()):
             img = batch["img"].cuda()
             label = batch["label"].cuda()
@@ -109,7 +108,7 @@ def my_app(cfg: DictConfig) -> None:
             linear_probs = torch.log_softmax(model.linear_probe(code), dim=1).cpu()
             cluster_probs = model.cluster_probe(code, 2, log_probs=True).cpu()
 
-            #linear_crf = torch.from_numpy(dense_crf(img.detach().cpu()[0], linear_probs.detach().cpu()[0])).cuda()
+            # linear_crf = torch.from_numpy(dense_crf(img.detach().cpu()[0], linear_probs.detach().cpu()[0])).cuda()
             cluster_crf_numpy = dense_crf(img.detach().cpu()[0], cluster_probs.detach().cpu()[0])
             cluster_crf = torch.cat([torch.from_numpy(arr).unsqueeze(0) for arr in cluster_crf_numpy], dim=0)
             cluster_crf = cluster_crf.unsqueeze(0)
@@ -129,23 +128,18 @@ def my_app(cfg: DictConfig) -> None:
                 segmentation_mask_colored[0])  # sets backgroung to 0
             filtered_segmentation_mask_img = Image.fromarray(filtered_segmentation_mask.astype(np.uint8))
 
-            if cfg.resize_to_original:
-                filtered_segmentation_mask = resize_mask(filtered_segmentation_mask, image_shape)
-                filtered_segmentation_mask_img = Image.fromarray(filtered_segmentation_mask[0].astype(np.uint8))
 
-            predicted_instance_mask = maskD.segmentation_to_instance_mask(filtered_segmentation_mask_img, depth,
-                                                                          image_shape, clustering_algorithm="bgmm",
-                                                                          epsilon=10,min_samples=10,
-                                                                          project_data=False)
 
-            predicted_instance_mask = eval_utils.normalize_labels(predicted_instance_mask)
+            predicted_instance_mask = np.sum(filtered_segmentation_mask,axis=2)
+
+            predicted_instance_mask =eval_utils.normalize_labels(predicted_instance_mask)
             instance = eval_utils.normalize_labels(instance)
 
             instance_mask_not_matched = np.zeros(image_shape)
 
             predicted_instance_ids = np.unique(predicted_instance_mask)
 
-            assignments = eval_utils.get_assigment(predicted_instance_mask, instance)
+            assignments = eval_utils.get_assigment(torch.from_numpy(predicted_instance_mask.astype(np.uint8)).unsqueeze(0), instance)
 
             not_matched_instance_ids = np.setdiff1d(predicted_instance_ids, assignments[0])
 
@@ -153,7 +147,8 @@ def my_app(cfg: DictConfig) -> None:
                 instance_mask_not_matched = np.add(instance_mask_not_matched,
                                                    np.where(predicted_instance_mask == id, id, 0))
 
-            instance_mask = Image.fromarray(grayscale_to_random_color(instance, image_shape, color_list).astype(np.uint8))
+            instance_mask = Image.fromarray(
+                grayscale_to_random_color(instance, image_shape, color_list).astype(np.uint8))
             #instance_mask.show()
 
             instance_mask_matched = np.zeros(image_shape)
@@ -164,7 +159,8 @@ def my_app(cfg: DictConfig) -> None:
 
             instance_mask_matched = np.add(instance_mask_matched, instance_mask_not_matched)
 
-            instance_mask_predicted = Image.fromarray(grayscale_to_random_color(instance_mask_matched, image_shape, color_list).astype(np.uint8))
+            instance_mask_predicted = Image.fromarray(
+                grayscale_to_random_color(instance_mask_matched, image_shape, color_list).astype(np.uint8))
             #instance_mask_predicted.show()
 
             Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_IoU, precision, recall, pixelIoU = eval_utils.get_avg_IoU_AP_AR(
@@ -174,17 +170,17 @@ def my_app(cfg: DictConfig) -> None:
 
             img_boxes = eval_utils.drawBoundingBoxes(real_img.numpy(), boundingBoxes, (0, 255, 0))
             img_boxes = Image.fromarray(img_boxes.astype('uint8'))
+            #img_boxes.show()
 
-            write_results(result_dir, count_naming, Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_IoU, precision, recall, pixelIoU)
-            write_images(result_dir, count_naming, real_image, segmentation_mask_img, segmentation_mask_img, instance_mask,
+            write_results(result_dir, count_naming, Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_IoU, precision, recall,
+                          pixelIoU)
+            write_images(result_dir, count_naming, real_image, segmentation_mask_img, segmentation_mask_img,
+                         instance_mask,
                          instance_mask_predicted, img_boxes)
 
-            count_naming +=1
+            count_naming += 1
 
             print("breakpoint")
-
-
-
 
 
 if __name__ == "__main__":

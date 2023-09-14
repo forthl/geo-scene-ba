@@ -1,8 +1,10 @@
+import PIL.Image
 import cv2
 import numpy as np
 import torch.multiprocessing
 from scipy.optimize import linear_sum_assignment
 from sklearn.metrics import average_precision_score
+from PIL import *
 
 
 def get_assigment(preds,
@@ -66,6 +68,7 @@ def normalize_labels(instances):
 
 
 def get_bounding_boxes(img):
+    img = img.astype(np.uint16)
     instance_ids = np.unique(img)
     instance_ids = np.delete(instance_ids, 0)
     bounding_boxes = {}
@@ -102,111 +105,79 @@ def bb_intersection_over_union(boxA, boxB):
     # return the intersection over union value
     return iou
 
+def ap_ar_IoU(target,pred, index):
+    target_bin_mask = np.where(target==index, 1, 0)
+    pred_bin_mask = np.where(pred==index,1,0)
 
-def ap_intersection_over_union(targets, preds, index):
-    indices_target = np.nonzero(np.where(targets == index, targets, 0))
-    indices_preds = np.nonzero(np.where(preds == index, preds, 0))
+    #PIL.Image.fromarray(np.uint8(target_bin_mask * 255)).show(title="target")
+    #PIL.Image.fromarray(np.uint8(pred_bin_mask * 255)).show(title="prediction")
 
-    x_min = min(np.min(indices_preds[1]), np.min(indices_target[1]))
-    x_max = max(np.max(indices_preds[1]), np.max(indices_target[1])) + 1
+    union =np.add(target_bin_mask,pred_bin_mask)
+    intersection = np.where(union==2,1,0)
+    union = np.where(union>0,1,0)
+    union_sum = union.sum()
 
-    y_min = min(np.min(indices_preds[0]), np.min(indices_target[0]))
-    y_max = max(np.max(indices_preds[0]), np.max(indices_target[0])) + 1
+    #PIL.Image.fromarray(np.uint8(union * 255)).show(title="union")
+    #PIL.Image.fromarray(np.uint8(intersection * 255)).show(title="intersection")
 
-    targets_bounded = targets[y_min:y_max, x_min:x_max]
-    preds_bounded = preds[y_min:y_max, x_min:x_max]
-    predicted = np.sum(np.where(preds_bounded == index, 1, 0))
+    TP = intersection.sum()
+    FP = np.where(pred_bin_mask!=intersection,1,0).sum()
+    FN = np.where(target_bin_mask!=intersection,1,0).sum()
 
-    default = max(np.max(np.unique(targets_bounded)),
-                  np.max(np.unique(preds_bounded))) + 1
-    targets_bounded = np.where(targets_bounded == index, index, default)
+    if TP==0:# so we don't get (NaN, NaN) returned
+        return 0,0,0
 
-    same = (targets_bounded == preds_bounded).sum()
+    precision = TP/(TP+FP)
+    recall = TP/(TP+FN)
+    pixelWise_IoU = TP/union_sum
 
-    ap = same / predicted
+    return precision, recall, pixelWise_IoU
 
-    return ap
 
-def ar_intersection_over_union(targets, preds, index):
-    indices_target = np.nonzero(np.where(targets == index, targets, 0))
-    indices_preds = np.nonzero(np.where(preds == index, preds, 0))
 
-    x_min = min(np.min(indices_preds[1]), np.min(indices_target[1]))
-    x_max = max(np.max(indices_preds[1]), np.max(indices_target[1])) + 1
-
-    y_min = min(np.min(indices_preds[0]), np.min(indices_target[0]))
-    y_max = max(np.max(indices_preds[0]), np.max(indices_target[0])) + 1
-    
-    targets_bounded = targets[y_min:y_max, x_min:x_max]
-    preds_bounded = preds[y_min:y_max, x_min:x_max]
-    ground_truth = np.sum(np.where(targets_bounded == index, 1, 0))
-    
-    default = max(np.max(np.unique(targets_bounded)),
-                  np.max(np.unique(preds_bounded))) + 1
-    targets_bounded = np.where(targets_bounded == index, index, default)
-    
-    same = (targets_bounded == preds_bounded).sum()
-
-    ar = same / ground_truth
-    
-    return ar
-    
-
-def get_mean_IoU(preds, target):
+def get_avg_IoU_AP_AR(target, prediction):
     bounding_boxes_target = get_bounding_boxes(target)
-    bounding_boxes_preds = get_bounding_boxes(preds)
-    IoU = []
+    bounding_boxes_prediction = get_bounding_boxes(prediction)
+    B_Box_IoU = []
+    precision = []
+    recall = []
+    pixelIoU = []
 
-    for index in list(bounding_boxes_target.keys()):
-        if bounding_boxes_preds.get(index) is not None:
-            IoU.append(bb_intersection_over_union(
-                bounding_boxes_target[index], bounding_boxes_preds[index]))
+    target_keys = np.unique(target)
+    prediction_keys = np.unique(prediction)
+
+    all_keys = np.union1d(target_keys, prediction_keys).astype(np.uint8)
+
+    #np.delete(all_keys,0)#this should remove 0 which is backgroung but currently it doesn't
+
+    for key in all_keys:
+        if bounding_boxes_prediction.get(key) is not None:
+            if bounding_boxes_target.get(key) is not None:
+                B_Box_IoU.append(bb_intersection_over_union(bounding_boxes_target[key], bounding_boxes_prediction[key]))
+                pr, rc, pixIoU = ap_ar_IoU(target, prediction, key)
+                precision.append(pr)
+                recall.append(rc)
+                pixelIoU.append(pixIoU)
+            else:
+                B_Box_IoU.append(0)# if we predicted an instance that is not in the target
+                precision.append(0)
+                recall.append(0)
+                pixelIoU.append(0)
         else:
-            IoU.append(0)
+            B_Box_IoU.append(0)  # if we didn't predict that instance
+            precision.append(0)
+            recall.append(0)
+            pixelIoU.append(0)
 
-    if len(IoU) == 0:
-        return 0
+    if len(B_Box_IoU) == 0:
+        return 0, 0, 0, 0
 
-    mean_IoU = sum(IoU) / len(IoU)
+    A_BBox_IoU = sum(B_Box_IoU) / len(B_Box_IoU)
+    AP = sum(precision) / len(precision)
+    AR = sum(recall) / len(recall)
+    A_pixel_IoU = sum(pixelIoU) / len(pixelIoU)
 
-    return mean_IoU
-
-
-def average_percision(preds, target):
-    bounding_boxes_target = get_bounding_boxes(target)
-    bounding_boxes_preds = get_bounding_boxes(preds)
-    AP = []
-
-    for index in list(bounding_boxes_target.keys()):
-        if bounding_boxes_preds.get(index) is not None:
-            AP.append(ap_intersection_over_union(target, preds, index))
-        else:
-            AP.append(0)
-
-    if len(AP) == 0:
-        return 0
-
-    mean_ap = sum(AP) / len(AP)
-
-    return mean_ap
-
-def average_recall(preds, target):
-    bounding_boxes_target = get_bounding_boxes(target)
-    bounding_boxes_preds = get_bounding_boxes(preds)
-    AR = []
-    
-    for index in list(bounding_boxes_target.keys()):
-        if bounding_boxes_preds.get(index) is not None:
-            AR.append(ar_intersection_over_union(target, preds, index))
-        else:
-            AR.append(0)
-            
-    if len(AR) == 0:
-        return 0
-    
-    mean_ar = sum(AR) / len(AR)
-    
-    return mean_ar
+    return A_BBox_IoU, AP, AR, A_pixel_IoU , B_Box_IoU, precision, recall, pixelIoU
     
 
 def drawBoundingBoxes(imageData, inferenceResults, color):

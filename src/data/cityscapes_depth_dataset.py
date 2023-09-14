@@ -1,15 +1,66 @@
 import json
 import os
-
 from collections import namedtuple
+from typing import Any, Callable, Dict, List, Optional, Union, Tuple
+from numpy import inf
+import cv2
+import numpy as np
 from PIL import Image
-from PIL.Image import Image
 from torchvision.datasets import VisionDataset, Cityscapes
 from torchvision.datasets.utils import verify_str_arg, iterable_to_str, extract_archive
-from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 
-#this is an old version of the depth depth dataset, instead use the class in cityscapes_depth_dataset.py
-class Cityscapes_Depth(Cityscapes):
+
+
+
+
+class Cityscapes_Depth(VisionDataset):
+    """`Cityscapes <http://www.cityscapes-dataset.com/>`_ Dataset.
+
+    Args:
+        root (string): Root directory of dataset where directory ``leftImg8bit``
+            and ``gtFine`` or ``gtCoarse`` are located.
+        split (string, optional): The image split to use, ``train``, ``test`` or ``val`` if mode="fine"
+            otherwise ``train``, ``train_extra`` or ``val``
+        mode (string, optional): The quality mode to use, ``fine`` or ``coarse``
+        target_type (string or list, optional): Type of target to use, ``instance``, ``semantic``, ``polygon``
+            or ``color``. Can also be a list to output a tuple with all specified target types.
+        transform (callable, optional): A function/transform that takes in a PIL image
+            and returns a transformed version. E.g, ``transforms.RandomCrop``
+        target_transform (callable, optional): A function/transform that takes in the
+            target and transforms it.
+        transforms (callable, optional): A function/transform that takes input sample and its target as entry
+            and returns a transformed version.
+
+    Examples:
+
+        Get semantic segmentation target
+
+        .. code-block:: python
+
+            dataset = Cityscapes('./data/cityscapes', split='train', mode='fine',
+                                 target_type='semantic')
+
+            img, smnt = dataset[0]
+
+        Get multiple targets
+
+        .. code-block:: python
+
+            dataset = Cityscapes('./data/cityscapes', split='train', mode='fine',
+                                 target_type=['instance', 'color', 'polygon'])
+
+            img, (inst, col, poly) = dataset[0]
+
+        Validate on the "coarse" set
+
+        .. code-block:: python
+
+            dataset = Cityscapes('./data/cityscapes', split='val', mode='coarse',
+                                 target_type='semantic')
+
+            img, smnt = dataset[0]
+    """
+
     # Based on https://github.com/mcordts/cityscapesScripts
     CityscapesClass = namedtuple('CityscapesClass', ['name', 'id', 'train_id', 'category', 'category_id',
                                                      'has_instances', 'ignore_in_eval', 'color'])
@@ -60,21 +111,21 @@ class Cityscapes_Depth(Cityscapes):
             target_type: Union[List[str], str] = "instance",
             transform: Optional[Callable] = None,
             target_transform: Optional[Callable] = None,
+            depth_transform: Optional[Callable]= None,
             transforms: Optional[Callable] = None,
-            include_depth = True
     ) -> None:
-        super(Cityscapes, self).__init__(root, transforms, transform, target_transform)
+        super(Cityscapes_Depth, self).__init__(root, transforms, transform, target_transform)
         self.mode = 'gtFine' if mode == 'fine' else 'gtCoarse'
         self.images_dir = os.path.join(self.root, 'leftImg8bit', split)
-        self.depth_dir = os.path.join(self.root, "disparity", split)
+        self.depth_dir = os.path.join(self.root,  "disparity", split)
         self.targets_dir = os.path.join(self.root, self.mode, split)
         self.target_type = target_type
         self.split = split
-        self.include_depth=include_depth
         self.images = []
         self.targets = []
-        self.depth = []
+        self.disparity = []
 
+        print(self.images_dir)
 
         verify_str_arg(mode, "mode", ("fine", "coarse"))
         if mode == "fine":
@@ -86,14 +137,14 @@ class Cityscapes_Depth(Cityscapes):
         msg = msg.format(split, mode, iterable_to_str(valid_modes))
         verify_str_arg(split, "split", valid_modes, msg)
 
-
         if not isinstance(target_type, list):
             self.target_type = [target_type]
         [verify_str_arg(value, "target_type",
                         ("instance", "semantic", "polygon", "color"))
          for value in self.target_type]
 
-        if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir) or not os.path.isdir(self.depth_dir):
+        if not os.path.isdir(self.images_dir) or not os.path.isdir(self.targets_dir) or not os.path.isdir(
+                self.depth_dir):
 
             if split == 'train_extra':
                 image_dir_zip = os.path.join(self.root, 'leftImg8bit{}'.format('_trainextra.zip'))
@@ -108,7 +159,6 @@ class Cityscapes_Depth(Cityscapes):
             elif self.mode == 'gtCoarse':
                 target_dir_zip = os.path.join(self.root, '{}{}'.format(self.mode, '.zip'))
 
-
             if os.path.isfile(image_dir_zip) and os.path.isfile(target_dir_zip) and os.path.isfile(depth_dir_zip):
                 extract_archive(from_path=image_dir_zip, to_path=self.root)
                 extract_archive(from_path=target_dir_zip, to_path=self.root)
@@ -120,7 +170,7 @@ class Cityscapes_Depth(Cityscapes):
 
         for city in os.listdir(self.images_dir):
             img_dir = os.path.join(self.images_dir, city)
-            depth_dir =os.path.join(self.depth_dir, city)
+            disparity_dir = os.path.join(self.depth_dir, city)
             target_dir = os.path.join(self.targets_dir, city)
             for file_name in os.listdir(img_dir):
                 target_types = []
@@ -129,12 +179,13 @@ class Cityscapes_Depth(Cityscapes):
                                                  self._get_target_suffix(self.mode, t))
                     target_types.append(os.path.join(target_dir, target_name))
 
-                if self.include_depth:
-                    self.depth.append(os.path.join(depth_dir,file_name))
+
+                disparity_name = '{}_{}'.format(file_name.split('_leftImg8bit')[0], 'disparity.png')
+                self.disparity.append(os.path.join(disparity_dir, disparity_name))
                 self.images.append(os.path.join(img_dir, file_name))
                 self.targets.append(target_types)
 
-    def __getitem__(self, index: int) -> Tuple[Union[Image, Any], Union[tuple, Any], Union[Image, Any]]:
+    def __getitem__(self, index: int) -> Tuple[Union[Any, Any], Union[Any, Any], Union[Any, Any]]:
         """
         Args:
             index (int): Index
@@ -144,23 +195,32 @@ class Cityscapes_Depth(Cityscapes):
         """
 
         image = Image.open(self.images[index]).convert('RGB')
-        depth = Image.open(self.depth[index]).convert("RGB")##check again if RGB is necessary
+
+        disparity = cv2.imread(self.disparity[index], cv2.IMREAD_UNCHANGED).astype(np.float64)
+        disparity = np.where(disparity > 0, (disparity-1)/256,0)
+        depth = np.where(disparity > 0, (0.209313 * 2262.52) / disparity,0)
+        #disparity = Image.fromarray(disparity)
 
         targets: Any = []
         for i, t in enumerate(self.target_type):
             if t == 'polygon':
                 target = self._load_json(self.targets[index][i])
+            elif t == 'instance':
+                target = cv2.imread(self.targets[index][i], cv2.IMREAD_UNCHANGED).astype(np.uint16)
+                target = self._filter_has_instance(target)
+                target = self.normalize_labels(target)
+                target = Image.fromarray(target)
+                targets.append(target)
             else:
                 target = Image.open(self.targets[index][i])
-
             targets.append(target)
 
         target = tuple(targets) if len(targets) > 1 else targets[0]
 
         if self.transforms is not None:
-            image, target, depth = self.transforms(image, target, depth)
+            image, target = self.transforms(image, target)
 
-        return image, target ,depth
+        return image, target, depth
 
     def __len__(self) -> int:
         return len(self.images)
@@ -174,6 +234,8 @@ class Cityscapes_Depth(Cityscapes):
             data = json.load(file)
         return data
 
+
+
     def _get_target_suffix(self, mode: str, target_type: str) -> str:
         if target_type == 'instance':
             return '{}_instanceIds.png'.format(mode)
@@ -183,3 +245,17 @@ class Cityscapes_Depth(Cityscapes):
             return '{}_color.png'.format(mode)
         else:
             return '{}_polygons.json'.format(mode)
+
+    def normalize_labels(self,instance_labels):
+        label_ids = np.unique(instance_labels)
+        current_id = 0
+
+        for label_id in label_ids:
+            instance_labels = np.where(instance_labels == label_id, current_id, instance_labels)
+            current_id += 1
+
+        return instance_labels
+    def _filter_has_instance(self, img_array):
+        mask = img_array/1000.0
+        img_array = np.where(mask < 24, 0, img_array )
+        return img_array

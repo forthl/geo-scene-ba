@@ -14,9 +14,10 @@ saved_models_dir = join("checkpoints", "saved_models")
 os.makedirs(saved_models_dir, exist_ok=True)
 saved_model_url_root = "https://marhamilresearch4.blob.core.windows.net/stego-public/saved_models/"
 saved_model_names = ["cityscapes_vit_base_1.ckpt",
-                     "cocostuff27_vit_base_5.ckpt",
-                     "picie_and_probes.pth",
-                     "potsdam_test.ckpt"]
+                     #"cocostuff27_vit_base_5.ckpt",
+                     #"picie_and_probes.pth",
+                     #"potsdam_test.ckpt"
+                     ]
 
 target_files = [join(models_dir, mn) for mn in model_names] + \
                [join(saved_models_dir, mn) for mn in saved_model_names]

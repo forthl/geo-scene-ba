@@ -181,6 +181,8 @@ def get_transform(res, is_label, crop_type):
                           T.ToTensor(),
                           normalize])
 
+
+
 def get_depth_transform(res,  crop_type):
     if crop_type == "center":
         cropper = T.CenterCrop(res)
