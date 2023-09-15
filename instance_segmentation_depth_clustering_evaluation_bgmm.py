@@ -27,7 +27,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 def my_app(cfg: DictConfig) -> None:
     pytorch_data_dir = cfg.pytorch_data_dir
     result_directory_path = cfg.results_dir
-    result_dir = join(result_directory_path, "results/predictions/BGMM/")
+    result_dir = join(result_directory_path, "results/predictions/BGMM_projected/")
     os.makedirs(join(result_dir, "Metrics"), exist_ok=True)
     os.makedirs(join(result_dir, "real_img"), exist_ok=True)
     os.makedirs(join(result_dir, "segmentation_target"), exist_ok=True)
@@ -40,11 +40,8 @@ def my_app(cfg: DictConfig) -> None:
         model = LitUnsupervisedSegmenter.load_from_checkpoint(model_path)
         print(OmegaConf.to_yaml(model.cfg))
 
-    color_list = []
-    color_list.append((0, 0, 0))  # 0 values are not part of any instance thus black
-    for i in range(1000):
-        color = list(np.random.choice(range(256), size=3))
-        color_list.append(color)
+    color_list = random_colors
+
 
     depth_transform_res = cfg.res
 
@@ -76,12 +73,12 @@ def my_app(cfg: DictConfig) -> None:
         par_model = model.net
 
 
-    count_naming=160
+    count_naming=0
     count=0
 
     # TODO Try to patch the image into 320x320 and then feed it into the transformer
     for i, batch in enumerate(tqdm(loader)):
-        if count<=159:
+        if count<=-1:
             count+=1
             continue
             
@@ -136,7 +133,7 @@ def my_app(cfg: DictConfig) -> None:
             predicted_instance_mask = maskD.segmentation_to_instance_mask(filtered_segmentation_mask_img, depth,
                                                                           image_shape, clustering_algorithm="bgmm",
                                                                           epsilon=10,min_samples=10,
-                                                                          project_data=False)
+                                                                          project_data=True)
 
             predicted_instance_mask = eval_utils.normalize_labels(predicted_instance_mask)
             instance = eval_utils.normalize_labels(instance)
@@ -145,22 +142,27 @@ def my_app(cfg: DictConfig) -> None:
 
             predicted_instance_ids = np.unique(predicted_instance_mask)
 
-            assignments = eval_utils.get_assigment(predicted_instance_mask, instance)
+            assignments = eval_utils.get_assigment(predicted_instance_mask, instance)#targetIDs, matched InstanceIDs
 
-            not_matched_instance_ids = np.setdiff1d(predicted_instance_ids, assignments[0])
+            num_matched_instances = assignments[0].size
 
-            for id in not_matched_instance_ids:
-                instance_mask_not_matched = np.add(instance_mask_not_matched,
-                                                   np.where(predicted_instance_mask == id, id, 0))
-
-            instance_mask = Image.fromarray(grayscale_to_random_color(instance, image_shape, color_list).astype(np.uint8))
-            #instance_mask.show()
+            not_matched_instance_ids = np.setdiff1d(predicted_instance_ids, assignments[1])
 
             instance_mask_matched = np.zeros(image_shape)
 
             for i, val in enumerate(assignments[1]):  # this is correct (assignments[1])
                 mask = np.where(predicted_instance_mask == val, assignments[0][i], 0)
                 instance_mask_matched = instance_mask_matched + mask
+
+
+            for i, id in enumerate(not_matched_instance_ids):
+                instance_mask_not_matched = np.add(instance_mask_not_matched,
+                                                   np.where(predicted_instance_mask == id, num_matched_instances+i, 0))
+
+            instance_mask = Image.fromarray(grayscale_to_random_color(instance, image_shape, color_list).astype(np.uint8))
+            #instance_mask.show()
+
+
 
             if cfg.eval_N_M:
                 instance_mask_matched = np.add(instance_mask_matched, instance_mask_not_matched)

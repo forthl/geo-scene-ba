@@ -145,16 +145,12 @@ def my_app(cfg: DictConfig) -> None:
 
                     predicted_instance_ids = np.unique(predicted_instance_mask)
 
-                    assignments = eval_utils.get_assigment(predicted_instance_mask, instance)
+                    assignments = eval_utils.get_assigment(predicted_instance_mask,
+                                                           instance)  # targetIDs, matched InstanceIDs
 
-                    not_matched_instance_ids = np.setdiff1d(predicted_instance_ids, assignments[0])
+                    num_matched_instances = assignments[0].size
 
-                    for id in not_matched_instance_ids:
-                        instance_mask_not_matched = np.add(instance_mask_not_matched,
-                                                           np.where(predicted_instance_mask == id, id, 0))
-
-                    instance_mask = Image.fromarray(grayscale_to_random_color(instance, image_shape, color_list).astype(np.uint8))
-                    #instance_mask.show()
+                    not_matched_instance_ids = np.setdiff1d(predicted_instance_ids, assignments[1])
 
                     instance_mask_matched = np.zeros(image_shape)
 
@@ -162,10 +158,21 @@ def my_app(cfg: DictConfig) -> None:
                         mask = np.where(predicted_instance_mask == val, assignments[0][i], 0)
                         instance_mask_matched = instance_mask_matched + mask
 
-                    instance_mask_matched = np.add(instance_mask_matched, instance_mask_not_matched)
+                    for i, id in enumerate(not_matched_instance_ids):
+                        instance_mask_not_matched = np.add(instance_mask_not_matched,
+                                                           np.where(predicted_instance_mask == id,
+                                                                    num_matched_instances + i, 0))
 
-                    instance_mask_predicted = Image.fromarray(grayscale_to_random_color(instance_mask_matched, image_shape, color_list).astype(np.uint8))
-                    #instance_mask_predicted.show()
+                    instance_mask = Image.fromarray(
+                        grayscale_to_random_color(instance, image_shape, color_list).astype(np.uint8))
+                    # instance_mask.show()
+
+                    if cfg.eval_N_M:
+                        instance_mask_matched = np.add(instance_mask_matched, instance_mask_not_matched)
+
+                    instance_mask_predicted = Image.fromarray(
+                        grayscale_to_random_color(instance_mask_matched, image_shape, color_list).astype(np.uint8))
+                    # instance_mask_predicted.show()
 
                     Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_IoU, precision, recall, pixelIoU = eval_utils.get_avg_IoU_AP_AR(
                         instance, instance_mask_matched)

@@ -68,10 +68,10 @@ def create_projected_point_clouds(masked_depths):
 
 
 def unproject_point_cloud(data):
-    focal_length_x = 2262.52#since we resized the image
-    cx = 160
-    cy = 160
-    focal_length_y = 2265.3017905988554
+    focal_length_x = 2262.52 / 3.2
+    focal_length_y = 2265.3017905988554 / 3.2
+    cx = 1096.98 / 6.4
+    cy = 513.137 / 3.2
 
     for point in data:
         point[0] = int(round((point[0] * focal_length_x / point[2]) + cx))
@@ -82,10 +82,11 @@ def unproject_point_cloud(data):
 
 
 def project_disparity_to_3d(depth_map):#debug this shit cause the rescaling is wrong
-    focal_length_x = 2262.52/100
-    focal_length_y = 2265.3017905988554/100
-    cx = 160
-    cy = 160
+    focal_length_x = 2262.52/3.2
+    focal_length_y = 2265.3017905988554/3.2
+    cx = 1096.98/6.4
+    cy = 513.137/3.2
+
 
     height, width = depth_map.shape
 
@@ -94,9 +95,10 @@ def project_disparity_to_3d(depth_map):#debug this shit cause the rescaling is w
 
     # Filter out points with disparity value of 0
     valid_indices = np.where(depth_map != 0)
-    depth = depth_map[valid_indices]
-    points_x = (grid_x[valid_indices] - cx)*3.2 * (depth / focal_length_x)
-    points_y = (grid_y[valid_indices] - cy)*3.2 * (depth / focal_length_y)
+    depth = depth_map[valid_indices]*1000/0.2645833333
+    depth = depth/3.2
+    points_x = (grid_x[valid_indices] - cx) * (depth / focal_length_x)
+    points_y = (grid_y[valid_indices] - cy) * (depth / focal_length_y)
     points_z = depth
 
     # Stack the coordinates into a point cloud
@@ -129,7 +131,6 @@ def segmentation_to_instance_mask(filtered_segmentation_mask, depth_map, image_s
     #pcd.points = o3d.utility.Vector3dVector(projected_pointcloudzzz)
     #pcd.points = o3d.utility.Vector3dVector(normal_pointCloudzzz)
     #o3d.visualization.draw_geometries([pcd])
-
 
     for Idx, point_cloud in enumerate(point_clouds):
 

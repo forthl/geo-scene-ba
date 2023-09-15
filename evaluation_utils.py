@@ -51,7 +51,7 @@ def get_assigment(preds,
         cost_matrix = cost_matrix.reshape(
             (num_predicted_instances, num_actual_instances))
         assigments = linear_sum_assignment(cost_matrix, maximize=True)
-        assigments = np.flip(assigments)
+        assigments = np.flip(assigments,0)
 
     return assigments
 

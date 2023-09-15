@@ -198,7 +198,7 @@ class Cityscapes_Depth(VisionDataset):
 
         disparity = cv2.imread(self.disparity[index], cv2.IMREAD_UNCHANGED).astype(np.float64)
         disparity = np.where(disparity > 0, (disparity-1)/256,0)
-        depth = np.where(disparity > 0, (0.209313 * 2262.52) / disparity,0)
+        depth = np.where(disparity > 0, (0.222126 * 2268.36) / disparity,0)
         #disparity = Image.fromarray(disparity)
 
         targets: Any = []
