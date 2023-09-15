@@ -144,7 +144,11 @@ def segmentation_to_instance_mask(filtered_segmentation_mask, depth_map, image_s
         elif clustering_algorithm == "dbscan":
             cl = clusterAlgorithms.Dbscan(point_cloud, epsilon, min_samples)
 
-        labels = cl.find_clusters()
+        try:
+           labels = cl.find_clusters()
+        except:
+            labels = np.zeros(point_cloud.shape[0])
+
         labels += 1
 
         if project_data:

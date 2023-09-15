@@ -20,7 +20,7 @@ import evaluation_utils as eval_utils
 import clusterAlgorithms
 import open3d as o3d
 
-torch.multiprocessing.set_sharing_strategy('file_system')
+#torch.multiprocessing.set_sharing_strategy('file_system')
 
 
 @hydra.main(config_path="configs", config_name="eval_config.yml")
@@ -73,12 +73,12 @@ def my_app(cfg: DictConfig) -> None:
         par_model = model.net
 
 
-    count_naming=0
+    count_naming=233
     count=0
 
     # TODO Try to patch the image into 320x320 and then feed it into the transformer
     for i, batch in enumerate(tqdm(loader)):
-        if count<=-1:
+        if count<=232:
             count+=1
             continue
             
