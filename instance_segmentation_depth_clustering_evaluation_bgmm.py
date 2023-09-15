@@ -162,7 +162,8 @@ def my_app(cfg: DictConfig) -> None:
                 mask = np.where(predicted_instance_mask == val, assignments[0][i], 0)
                 instance_mask_matched = instance_mask_matched + mask
 
-            instance_mask_matched = np.add(instance_mask_matched, instance_mask_not_matched)
+            if cfg.eval_N_M:
+                instance_mask_matched = np.add(instance_mask_matched, instance_mask_not_matched)
 
             instance_mask_predicted = Image.fromarray(grayscale_to_random_color(instance_mask_matched, image_shape, color_list).astype(np.uint8))
             #instance_mask_predicted.show()

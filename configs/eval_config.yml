@@ -5,6 +5,7 @@ experiment_name: "cityscapes"
 res: 320
 batch_size: 1
 num_workers: 1
+eval_N_M: True
 run_picie: True
 run_crf: True
 run_prediction: True
