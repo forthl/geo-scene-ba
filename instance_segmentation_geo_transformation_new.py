@@ -1,4 +1,4 @@
-from multiprocessing import Pool
+from multiprocessing import Pool, Manager, Process
 
 import numpy as np  # dont remove this otherwise gets stuck in infinite loop
 import cv2
@@ -20,22 +20,47 @@ import evaluation_utils as eval_utils
 import clusterAlgorithms
 import open3d as o3d
 
+from depth_dataset import ContrastiveDepthDataset
+from eval_segmentation import batched_crf
+from eval_segmentation import _apply_crf
+from eval_segmentation import dense_crf
+from src.modules.stego_modules import *
+import hydra
+import torch.multiprocessing
+from PIL import Image
+from omegaconf import DictConfig, OmegaConf
+from torch.utils.data import DataLoader, Dataset
+import maskDepth2 as maskD
+from train_segmentation import LitUnsupervisedSegmenter
+from tqdm import tqdm
+from utils import get_depth_transform, get_transform
+import torchvision.transforms as T
+import evaluation_utils as eval_utils
+from src.drive_seg.geo_transformations import labelRangeImage
+
+from multiprocessing import Pool, Manager, Process
+
 
 # torch.multiprocessing.set_sharing_strategy('file_system')
 
+def worker(procnum, return_dict, depth_array, mask):
+    """worker function"""
+    rel_depth = depth_array * mask
+
+    return_dict[procnum] = labelRangeImage(rel_depth)
 
 @hydra.main(config_path="configs", config_name="eval_config.yml")
 def my_app(cfg: DictConfig) -> None:
     pytorch_data_dir = cfg.pytorch_data_dir
     result_directory_path = cfg.results_dir
-    result_dir = join(result_directory_path, "results/predictions/BGMM_projected_good_images/")
-    os.makedirs(join(result_dir,"1_1","Metrics"), exist_ok=True)
-    os.makedirs(join(result_dir,"1_1","real_img"), exist_ok=True)
-    os.makedirs(join(result_dir,"1_1","semantic_target"), exist_ok=True)
-    os.makedirs(join(result_dir,"1_1","semantic_predicted"), exist_ok=True)
-    os.makedirs(join(result_dir,"1_1","instance_target"), exist_ok=True)
-    os.makedirs(join(result_dir,"1_1","instance_predicted"), exist_ok=True)
-    os.makedirs(join(result_dir,"1_1","bounding_boxes"), exist_ok=True)
+    result_dir = join(result_directory_path, "results/predictions/geo_transformation_good_images/")
+    os.makedirs(join(result_dir, "1_1", "Metrics"), exist_ok=True)
+    os.makedirs(join(result_dir, "1_1", "real_img"), exist_ok=True)
+    os.makedirs(join(result_dir, "1_1", "semantic_target"), exist_ok=True)
+    os.makedirs(join(result_dir, "1_1", "semantic_predicted"), exist_ok=True)
+    os.makedirs(join(result_dir, "1_1", "instance_target"), exist_ok=True)
+    os.makedirs(join(result_dir, "1_1", "instance_predicted"), exist_ok=True)
+    os.makedirs(join(result_dir, "1_1", "bounding_boxes"), exist_ok=True)
     os.makedirs(join(result_dir, "Metrics"), exist_ok=True)
     os.makedirs(join(result_dir, "real_img"), exist_ok=True)
     os.makedirs(join(result_dir, "semantic_target"), exist_ok=True)
@@ -80,7 +105,7 @@ def my_app(cfg: DictConfig) -> None:
         par_model = model.net
 
     count_naming = 0
-    count = [52, 56, 59, 100]
+    count = [10,55,56,130]
 
     # TODO Try to patch the image into 320x320 and then feed it into the transformer
     for i, batch in enumerate(tqdm(loader)):
@@ -142,10 +167,35 @@ def my_app(cfg: DictConfig) -> None:
                 filtered_segmentation_mask = resize_mask(filtered_segmentation_mask, image_shape)
                 filtered_segmentation_mask_img = Image.fromarray(filtered_segmentation_mask[0].astype(np.uint8))
 
-            predicted_instance_mask = maskD.segmentation_to_instance_mask(filtered_segmentation_mask_img, depth,
-                                                                          image_shape, clustering_algorithm="bgmm",
-                                                                          epsilon=10, min_samples=10,
-                                                                          project_data=True)
+
+            masks=maskD.get_segmentation_masks(filtered_segmentation_mask_img)
+            # remove the first element which is the mask containing pixels which are classes with no atributtes(e.g. road buildingi)
+            masks.pop(0)
+
+            manager = Manager()
+            return_dict = manager.dict()
+            jobs = []
+            for i in range(len(masks)):
+                p = Process(target=worker, args=(
+                    i, return_dict, depth, masks[i]))
+                jobs.append(p)
+                p.start()
+
+            for proc in jobs:
+                proc.join()
+
+            current_num_instances = 0
+            predicted_instance_mask = np.zeros(masks[0].shape)
+            # fig, axeslist = plt.subplots(ncols=3, nrows=3)
+
+            for k in return_dict.keys():
+                labels = len(np.unique(return_dict[k])) - 1
+                class_instance_mask = return_dict[k]
+
+                class_instance_mask = np.where(class_instance_mask != 0, class_instance_mask + current_num_instances, 0)
+                current_num_instances += labels
+
+                predicted_instance_mask = np.add(predicted_instance_mask, class_instance_mask)
 
             predicted_instance_mask = eval_utils.normalize_labels(predicted_instance_mask)
             instance = eval_utils.normalize_labels(instance)
@@ -154,7 +204,8 @@ def my_app(cfg: DictConfig) -> None:
 
             predicted_instance_ids = np.unique(predicted_instance_mask)
 
-            assignments = eval_utils.get_assigment(predicted_instance_mask, instance)  # targetIDs, matched InstanceIDs
+            assignments = eval_utils.get_assigment(predicted_instance_mask,
+                                                   instance)  # targetIDs, matched InstanceIDs
 
             num_matched_instances = assignments[0].size
 
@@ -168,7 +219,8 @@ def my_app(cfg: DictConfig) -> None:
 
             for i, id in enumerate(not_matched_instance_ids):
                 instance_mask_not_matched = np.add(instance_mask_not_matched,
-                                                   np.where(predicted_instance_mask == id, num_matched_instances + i,
+                                                   np.where(predicted_instance_mask == id,
+                                                            num_matched_instances + i,
                                                             0))
 
             if cfg.eval_N_M:
@@ -183,9 +235,11 @@ def my_app(cfg: DictConfig) -> None:
             bounding_Boxes_1_1 = eval_utils.get_bounding_boxes(instance_mask_matched).values()
 
             img_boxes_N_M = Image.fromarray(
-                eval_utils.drawBoundingBoxes(np.array(rgb_image), bounding_Boxes_N_M, (0, 255, 0)).astype('uint8'))
+                eval_utils.drawBoundingBoxes(np.array(rgb_image), bounding_Boxes_N_M, (0, 255, 0)).astype(
+                    'uint8'))
             img_boxes_1_1 = Image.fromarray(
-                eval_utils.drawBoundingBoxes(np.array(rgb_image), bounding_Boxes_1_1, (0, 255, 0)).astype('uint8'))
+                eval_utils.drawBoundingBoxes(np.array(rgb_image), bounding_Boxes_1_1, (0, 255, 0)).astype(
+                    'uint8'))
 
             Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_IoU, precision, recall, pixelIoU = eval_utils.get_avg_IoU_AP_AR(
                 instance, instance_mask_matched_N_M)
@@ -207,8 +261,6 @@ def my_app(cfg: DictConfig) -> None:
                          instance_mask_target_img, instance_mask_predicted_1_1, img_boxes_1_1)
 
             count_naming += 1
-
-            print("breakpoint")
 
 
 if __name__ == "__main__":

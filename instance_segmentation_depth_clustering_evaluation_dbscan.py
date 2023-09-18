@@ -1,4 +1,4 @@
-from multiprocessing import Pool
+
 
 import numpy as np  # dont remove this otherwise gets stuck in infinite loop
 import cv2
@@ -20,18 +20,25 @@ import evaluation_utils as eval_utils
 import clusterAlgorithms
 import open3d as o3d
 
-#torch.multiprocessing.set_sharing_strategy('file_system')
+
 
 
 @hydra.main(config_path="configs", config_name="eval_config.yml")
 def my_app(cfg: DictConfig) -> None:
     pytorch_data_dir = cfg.pytorch_data_dir
     result_directory_path = cfg.results_dir
-    result_dir = join(result_directory_path, "results/predictions/DBSCAN:30,12/")
+    result_dir = join(result_directory_path, "results/predictions/DBSCAN_projected_good_images/")
+    os.makedirs(join(result_dir, "1_1", "Metrics"), exist_ok=True)
+    os.makedirs(join(result_dir, "1_1", "real_img"), exist_ok=True)
+    os.makedirs(join(result_dir, "1_1", "semantic_target"), exist_ok=True)
+    os.makedirs(join(result_dir, "1_1", "semantic_predicted"), exist_ok=True)
+    os.makedirs(join(result_dir, "1_1", "instance_target"), exist_ok=True)
+    os.makedirs(join(result_dir, "1_1", "instance_predicted"), exist_ok=True)
+    os.makedirs(join(result_dir, "1_1", "bounding_boxes"), exist_ok=True)
     os.makedirs(join(result_dir, "Metrics"), exist_ok=True)
     os.makedirs(join(result_dir, "real_img"), exist_ok=True)
-    os.makedirs(join(result_dir, "segmentation_target"), exist_ok=True)
-    os.makedirs(join(result_dir, "segmentation_predicted"), exist_ok=True)
+    os.makedirs(join(result_dir, "semantic_target"), exist_ok=True)
+    os.makedirs(join(result_dir, "semantic_predicted"), exist_ok=True)
     os.makedirs(join(result_dir, "instance_target"), exist_ok=True)
     os.makedirs(join(result_dir, "instance_predicted"), exist_ok=True)
     os.makedirs(join(result_dir, "bounding_boxes"), exist_ok=True)
@@ -40,11 +47,8 @@ def my_app(cfg: DictConfig) -> None:
         model = LitUnsupervisedSegmenter.load_from_checkpoint(model_path)
         print(OmegaConf.to_yaml(model.cfg))
 
-    color_list = []
-    color_list.append((0, 0, 0))  # 0 values are not part of any instance thus black
-    for i in range(100000):
-        color = list(np.random.choice(range(256), size=3))
-        color_list.append(color)
+    color_list = random_colors
+
 
     depth_transform_res = cfg.res
 
@@ -77,29 +81,37 @@ def my_app(cfg: DictConfig) -> None:
 
 
 
-    for min_samples in range(30,32,4):
-        for epsilon in range(11,12,4):
+    for min_samples in range(60,61,10):
+        for epsilon in range(700,705,100):
 
-            os.makedirs(join(result_dir, "Metrics," +str(epsilon)+" , "+str(min_samples)+"/"), exist_ok=True)
             count_naming = 0
+            count = [ 54,55,233,452]
 
             for i, batch in enumerate(tqdm(loader)):
-
+                if i not in count:
+                    continue
                 with torch.no_grad():
                     img = batch["img"].cuda()
                     label = batch["label"].cuda()
                     depth = batch["depth"]
-                    real_img = batch["real_img"]
+                    rgb_img = batch["real_img"]
                     instance = batch["instance"]
 
                     transToImg = T.ToPILImage()
-                    real_image = transToImg(real_img[0])
-                    real_img = real_img[0]
                     instance = instance[0].numpy()
                     instance = eval_utils.normalize_labels(instance)
                     depth_img = transToImg(depth[0])
                     depth = torch.squeeze(depth)
                     depth = depth.numpy()
+
+                    rgb_image = rgb_img[0].squeeze().numpy().astype(np.uint8)
+                    label2 = label.cpu()
+                    semantic_mask_target = model.label_cmap[label2[0].squeeze()].astype(np.uint8)
+
+                    rgb_image = Image.fromarray(rgb_image)
+                    semantic_mask_target_img = Image.fromarray(semantic_mask_target)
+                    instance_mask_target_img = Image.fromarray(
+                        grayscale_to_random_color(instance, image_shape, color_list).astype(np.uint8))
 
                     feats, code1 = par_model(img)
                     feats, code2 = par_model(img.flip(dims=[3]))
@@ -136,7 +148,7 @@ def my_app(cfg: DictConfig) -> None:
                     predicted_instance_mask = maskD.segmentation_to_instance_mask(filtered_segmentation_mask_img, depth,
                                                                                   image_shape, clustering_algorithm="dbscan",
                                                                                   epsilon=epsilon,min_samples=min_samples,
-                                                                                  project_data=False)
+                                                                                  project_data=True)
 
                     predicted_instance_mask = eval_utils.normalize_labels(predicted_instance_mask)
                     instance = eval_utils.normalize_labels(instance)
@@ -161,29 +173,45 @@ def my_app(cfg: DictConfig) -> None:
                     for i, id in enumerate(not_matched_instance_ids):
                         instance_mask_not_matched = np.add(instance_mask_not_matched,
                                                            np.where(predicted_instance_mask == id,
-                                                                    num_matched_instances + i, 0))
-
-                    instance_mask = Image.fromarray(
-                        grayscale_to_random_color(instance, image_shape, color_list).astype(np.uint8))
-                    # instance_mask.show()
+                                                                    num_matched_instances + i,
+                                                                    0))
 
                     if cfg.eval_N_M:
-                        instance_mask_matched = np.add(instance_mask_matched, instance_mask_not_matched)
+                        instance_mask_matched_N_M = np.add(instance_mask_matched, instance_mask_not_matched)
 
-                    instance_mask_predicted = Image.fromarray(
+                    instance_mask_predicted_N_M = Image.fromarray(
+                        grayscale_to_random_color(instance_mask_matched_N_M, image_shape, color_list).astype(np.uint8))
+                    instance_mask_predicted_1_1 = Image.fromarray(
                         grayscale_to_random_color(instance_mask_matched, image_shape, color_list).astype(np.uint8))
-                    # instance_mask_predicted.show()
+
+                    bounding_Boxes_N_M = eval_utils.get_bounding_boxes(instance_mask_matched_N_M).values()
+                    bounding_Boxes_1_1 = eval_utils.get_bounding_boxes(instance_mask_matched).values()
+
+                    img_boxes_N_M = Image.fromarray(
+                        eval_utils.drawBoundingBoxes(np.array(rgb_image), bounding_Boxes_N_M, (0, 255, 0)).astype(
+                            'uint8'))
+                    img_boxes_1_1 = Image.fromarray(
+                        eval_utils.drawBoundingBoxes(np.array(rgb_image), bounding_Boxes_1_1, (0, 255, 0)).astype(
+                            'uint8'))
 
                     Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_IoU, precision, recall, pixelIoU = eval_utils.get_avg_IoU_AP_AR(
+                        instance, instance_mask_matched_N_M)
+
+                    Avg_BBox_IoU1_1, AP1_1, AR1_1, Avg_Pixel_IoU1_1, B_Box_IoU1_1, precision1_1, recall1_1, pixelIoU1_1 = eval_utils.get_avg_IoU_AP_AR(
                         instance, instance_mask_matched)
 
-                    boundingBoxes = eval_utils.get_bounding_boxes(instance_mask_matched).values()
+                    write_results(result_dir, count_naming, Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU,
+                                  B_Box_IoU, precision, recall, pixelIoU)
 
-                    img_boxes = eval_utils.drawBoundingBoxes(real_img.numpy(), boundingBoxes, (0, 255, 0))
-                    img_boxes = Image.fromarray(img_boxes.astype('uint8'))
+                    write_results(join(result_dir, "1_1"), count_naming, Avg_BBox_IoU1_1, AP1_1,
+                                  AR1_1, Avg_Pixel_IoU1_1, B_Box_IoU1_1, precision1_1, recall1_1, pixelIoU1_1)
 
-                    write_results_dbscan(result_dir,epsilon,min_samples, count_naming, Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_IoU, precision, recall, pixelIoU)
-                    write_images(result_dir, count_naming, real_image, segmentation_mask_img, segmentation_mask_img, instance_mask,instance_mask_predicted, img_boxes)
+                    write_images(result_dir, count_naming, rgb_image, semantic_mask_target_img, segmentation_mask_img,
+                                 instance_mask_target_img, instance_mask_predicted_N_M, img_boxes_N_M)
+
+                    write_images(join(result_dir, "1_1"), count_naming, rgb_image, semantic_mask_target_img,
+                                 segmentation_mask_img,
+                                 instance_mask_target_img, instance_mask_predicted_1_1, img_boxes_1_1)
 
                     count_naming+=1
 

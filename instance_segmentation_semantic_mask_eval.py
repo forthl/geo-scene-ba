@@ -27,7 +27,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 def my_app(cfg: DictConfig) -> None:
     pytorch_data_dir = cfg.pytorch_data_dir
     result_directory_path = cfg.results_dir
-    result_dir = join(result_directory_path, "results/predictions/Semantic_mask/")
+    result_dir = join(result_directory_path, "results/predictions/Semantic_mask__1/")
     os.makedirs(join(result_dir, "Metrics"), exist_ok=True)
     os.makedirs(join(result_dir, "real_img"), exist_ok=True)
     os.makedirs(join(result_dir, "segmentation_target"), exist_ok=True)
@@ -75,12 +75,12 @@ def my_app(cfg: DictConfig) -> None:
     else:
         par_model = model.net
 
-    count_naming = 378
+    count_naming = 0
     count = 0
 
     # TODO Try to patch the image into 320x320 and then feed it into the transformer
     for i, batch in enumerate(tqdm(loader)):
-        if count <= 377:
+        if count <= -1:
             count += 1
             continue
 
@@ -132,24 +132,19 @@ def my_app(cfg: DictConfig) -> None:
 
             predicted_instance_mask = np.sum(filtered_segmentation_mask,axis=2)
 
-            predicted_instance_mask =eval_utils.normalize_labels(predicted_instance_mask)
+            predicted_instance_mask = eval_utils.normalize_labels(predicted_instance_mask)
             instance = eval_utils.normalize_labels(instance)
 
             instance_mask_not_matched = np.zeros(image_shape)
 
             predicted_instance_ids = np.unique(predicted_instance_mask)
 
-            assignments = eval_utils.get_assigment(torch.from_numpy(predicted_instance_mask.astype(np.uint8)).unsqueeze(0), instance)
+            assignments = eval_utils.get_assigment(predicted_instance_mask,
+                                                   instance)  # targetIDs, matched InstanceIDs
 
-            not_matched_instance_ids = np.setdiff1d(predicted_instance_ids, assignments[0])
+            num_matched_instances = assignments[0].size
 
-            for id in not_matched_instance_ids:
-                instance_mask_not_matched = np.add(instance_mask_not_matched,
-                                                   np.where(predicted_instance_mask == id, id, 0))
-
-            instance_mask = Image.fromarray(
-                grayscale_to_random_color(instance, image_shape, color_list).astype(np.uint8))
-            #instance_mask.show()
+            not_matched_instance_ids = np.setdiff1d(predicted_instance_ids, assignments[1])
 
             instance_mask_matched = np.zeros(image_shape)
 
@@ -157,13 +152,26 @@ def my_app(cfg: DictConfig) -> None:
                 mask = np.where(predicted_instance_mask == val, assignments[0][i], 0)
                 instance_mask_matched = instance_mask_matched + mask
 
-            instance_mask_matched = np.add(instance_mask_matched, instance_mask_not_matched)
+            for i, id in enumerate(not_matched_instance_ids):
+                instance_mask_not_matched = np.add(instance_mask_not_matched,
+                                                   np.where(predicted_instance_mask == id,
+                                                            num_matched_instances + i, 0))
+
+            instance_mask = Image.fromarray(
+                grayscale_to_random_color(instance, image_shape, color_list).astype(np.uint8))
+            # instance_mask.show()
+
+            if cfg.eval_N_M:
+                instance_mask_matched_N_M = np.add(instance_mask_matched, instance_mask_not_matched)
 
             instance_mask_predicted = Image.fromarray(
-                grayscale_to_random_color(instance_mask_matched, image_shape, color_list).astype(np.uint8))
-            #instance_mask_predicted.show()
+                grayscale_to_random_color(instance_mask_matched_N_M, image_shape, color_list).astype(np.uint8))
+            # instance_mask_predicted.show()
 
             Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_IoU, precision, recall, pixelIoU = eval_utils.get_avg_IoU_AP_AR(
+                instance, instance_mask_matched_N_M)
+
+            Avg_BBox_IoU1_1, AP1_1, AR1_1, Avg_Pixel_IoU1_1, B_Box_IoU1_1, precision1_1, recall1_1, pixelIoU1_1 = eval_utils.get_avg_IoU_AP_AR(
                 instance, instance_mask_matched)
 
             boundingBoxes = eval_utils.get_bounding_boxes(instance_mask_matched).values()
@@ -174,6 +182,9 @@ def my_app(cfg: DictConfig) -> None:
 
             write_results(result_dir, count_naming, Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_IoU, precision, recall,
                           pixelIoU)
+            write_results(join(result_dir, "1_1"), count_naming, Avg_BBox_IoU1_1, AP1_1,
+                                 AR1_1, Avg_Pixel_IoU1_1, B_Box_IoU1_1, precision1_1, recall1_1, pixelIoU1_1)
+
             write_images(result_dir, count_naming, real_image, segmentation_mask_img, segmentation_mask_img,
                          instance_mask,
                          instance_mask_predicted, img_boxes)

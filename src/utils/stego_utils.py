@@ -207,63 +207,6 @@ def filter_classes_has_instance(mask):
     return mask
 
 
-
-def write_results_dbscan(result_dir,epsilon,min_samples, index, Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_IoU, precision, recall, pixelIoU):
-
-    result_dir = join(result_dir, "Metrics," +str(epsilon)+" , "+str(min_samples)+"/")
-
-    f = open(join(result_dir, "BBox_IoU.txt"), "a")
-    f.write(str(index)+": "+str(Avg_BBox_IoU) + " , ")
-    f.write("\n")
-    f.close()
-
-    f = open(join(result_dir, "AP.txt"), "a")
-    f.write(str(index)+": "+str(AP) + " , ")
-    f.write("\n")
-    f.close()
-
-    f = open(join(result_dir, "AR.txt"), "a")
-    f.write(str(index)+": "+str(AR) + " , ")
-    f.write("\n")
-    f.close()
-
-    f = open(join(result_dir, "Pixel_IoU.txt"), "a")
-    f.write(str(index)+": "+str(Avg_Pixel_IoU) + " , ")
-    f.write("\n")
-    f.close()
-
-    f = open(join(result_dir, "BBox_IoU_elementWise.txt"), "a")
-    f.write(str(index) + ": ")
-    for val in B_Box_IoU:
-        f.write(str(val) + " , ")
-    f.write("\n")
-    f.close()
-
-    f = open(join(result_dir, "precision_elementWise.txt"), "a")
-    f.write(str(index) + ": ")
-    for val in precision:
-        f.write(str(val) + " , ")
-    f.write("\n")
-    f.close()
-
-    f = open(join(result_dir, "recall_elementWise.txt"), "a")
-    f.write(str(index) + ": ")
-    for val in recall:
-        f.write(str(val) + " , ")
-    f.write("\n")
-    f.close()
-
-    f = open(join(result_dir, "Pixel_IoU_elementWise.txt"), "a")
-    f.write(str(index) + ": ")
-    for val in pixelIoU:
-        f.write(str(val) + " , ")
-    f.write("\n")
-    f.close()
-
-
-
-
-
 def write_results(result_dir, index, Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_IoU, precision, recall, pixelIoU):
 
     result_dir = join(result_dir, "Metrics/")
@@ -319,12 +262,12 @@ def write_results(result_dir, index, Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_
 
 def write_images(result_dir, index, real_image, segmentation_mask, predicted_segmentation_mask, instance_mask,
                  predicted_instance_mask, bounding_box):
-    real_image.save(join(result_dir, "real_img/") + str(index) + ".png")
-    segmentation_mask.save(join(result_dir, "segmentation_target/") + str(index) + ".png")
-    predicted_segmentation_mask.save(join(result_dir, "segmentation_predicted/") + str(index) + ".png")
-    instance_mask.save(join(result_dir, "instance_target/") + str(index) + ".png")
-    predicted_instance_mask.save(join(result_dir, "instance_predicted/") + str(index) + ".png")
-    bounding_box.save(join(result_dir, "bounding_boxes/") + str(index) + ".png")
+    real_image.save(join(result_dir, "real_img" , str(index) + ".png"))
+    segmentation_mask.save(join(result_dir, "semantic_target", str(index) + ".png"))
+    predicted_segmentation_mask.save(join(result_dir, "semantic_predicted", str(index) + ".png"))
+    instance_mask.save(join(result_dir, "instance_target", str(index) + ".png"))
+    predicted_instance_mask.save(join(result_dir, "instance_predicted", str(index) + ".png"))
+    bounding_box.save(join(result_dir, "bounding_boxes", str(index) + ".png"))
 
 def resize_mask(mask, size):
     mask = torch.tensor(mask.astype('float32'))
