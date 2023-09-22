@@ -25,12 +25,7 @@ def get_segmentation_masks(img):
 
 # mask depth image with segmentations
 def get_masked_depth(depth_map, masks):
-    #disparity_map = np.asarray(disparity_img).astype(np.uint8)
-    focal_length_x = 2262.52/3.2
-    baseline = 0.209313
 
-    # Filter out points with disparity value of 0
-    #depth_array = np.where(disparity_map != 0,(baseline * focal_length_x) / disparity_map ,0)
 
     masked_depths = []
 
@@ -122,15 +117,6 @@ def segmentation_to_instance_mask(filtered_segmentation_mask, depth_map, image_s
 
     instance_mask = np.zeros(image_shape)
     current_num_instances = 0
-
-    #projected_pointcloudzzz = project_disparity_to_3d(depth_map)
-    #normal_pointCloudzzz = create_all_point_clouds(depth_map)
-
-
-    #pcd = o3d.geometry.PointCloud()
-    #pcd.points = o3d.utility.Vector3dVector(projected_pointcloudzzz)
-    #pcd.points = o3d.utility.Vector3dVector(normal_pointCloudzzz)
-    #o3d.visualization.draw_geometries([pcd])
 
     for Idx, point_cloud in enumerate(point_clouds):
 

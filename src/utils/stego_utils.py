@@ -231,28 +231,28 @@ def write_results(result_dir, index, Avg_BBox_IoU, AP, AR, Avg_Pixel_IoU, B_Box_
     f.write("\n")
     f.close()
 
-    f = open(join(result_dir, "BBox_IoU_elementWise.txt"), "a")
+    f = open(join(result_dir, "BBox_IoU_Individual_instance.txt"), "a")
     f.write(str(index) + ":      ")
     for val in B_Box_IoU:
         f.write(str(val) + " , ")
     f.write("\n")
     f.close()
 
-    f = open(join(result_dir, "precision_elementWise.txt"), "a")
+    f = open(join(result_dir, "precision_Individual_instance.txt"), "a")
     f.write(str(index) + ":      ")
     for val in precision:
         f.write(str(val) + " , ")
     f.write("\n")
     f.close()
 
-    f = open(join(result_dir, "recall_elementWise.txt"), "a")
+    f = open(join(result_dir, "recall_Individual_instance.txt"), "a")
     f.write(str(index) + ":      ")
     for val in recall:
         f.write(str(val) + " , ")
     f.write("\n")
     f.close()
 
-    f = open(join(result_dir, "Pixel_IoU_elementWise.txt"), "a")
+    f = open(join(result_dir, "Pixel_IoU_Individual_instance.txt"), "a")
     f.write(str(index) + ":      ")
     for val in pixelIoU:
         f.write(str(val) + " , ")

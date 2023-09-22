@@ -1,7 +1,10 @@
 output_root: '../src'
 pytorch_data_dir: '/home/endrit/geo-scene/data'
-results_dir: '/home/endrit/geo-scene/'
+results_dir: '/home/endrit/geo-scene/results/predictions/'
 experiment_name: "cityscapes"
+clustering_algorithm: "dbscan"
+epsilon: 600 #used if dbscan is the clustering algorithm
+min_samples: 55 #used if dbscan is the clustering algorithm
 res: 320
 batch_size: 1
 num_workers: 1

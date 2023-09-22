@@ -4,7 +4,6 @@ from sklearn.mixture import BayesianGaussianMixture
 from sklearn.cluster import SpectralClustering
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import DBSCAN
-from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
 

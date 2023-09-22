@@ -40,11 +40,7 @@ def my_app(cfg: DictConfig) -> None:
         model = LitUnsupervisedSegmenter.load_from_checkpoint(model_path)
         print(OmegaConf.to_yaml(model.cfg))
 
-    color_list = []
-    color_list.append((0, 0, 0))  # 0 values are not part of any instance thus black
-    for i in range(1000):
-        color = list(np.random.choice(range(256), size=3))
-        color_list.append(color)
+    color_list = random_colors
 
     depth_transform_res = cfg.res
 
