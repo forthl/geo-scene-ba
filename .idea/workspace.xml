@@ -57,7 +57,7 @@
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
     "run.code.analysis.last.selected.profile": "aDefault",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+    "settings.editor.selected.configurable": "vcs.Git",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -97,7 +97,7 @@
       <workItem from="1717516852952" duration="24000" />
       <workItem from="1717516882416" duration="564000" />
       <workItem from="1717580271994" duration="2050000" />
-      <workItem from="1717598149965" duration="3895000" />
+      <workItem from="1717598149965" duration="4232000" />
     </task>
     <task id="LOCAL-00001" summary="fixing code">
       <option name="closed" value="true" />
