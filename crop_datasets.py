@@ -1,11 +1,12 @@
 import hydra
 import os
 import torch
+import torchvision.transforms.functional
 
 from lightning_lite.utilities.seed import seed_everything
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Dataset
-from torchvision.transforms.functional import five_crop, _get_image_size, crop
+from torchvision.transforms.functional import five_crop, crop #,_get_image_size
 from tqdm import tqdm
 
 from src.data.stego_data_utils import ContrastiveSegDataset
@@ -38,7 +39,7 @@ def _random_crops(img, size, seed, n):
     if len(size) != 2:
         raise ValueError("Please provide only two dimensions (h, w) for size.")
 
-    image_width, image_height = _get_image_size(img)
+    image_width, image_height = torchvision.transforms.functional.get_image_size(img)
     crop_height, crop_width = size
     if crop_width > image_width or crop_height > image_height:
         msg = "Requested crop size {} is bigger than input size {}"

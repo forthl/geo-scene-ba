@@ -17,6 +17,7 @@ from tqdm import tqdm
 from skimage.segmentation import mark_boundaries
 from sklearn.decomposition import PCA
 
+import utils
 from src.data.stego_data_utils import ContrastiveSegDataset
 from src.modules.stego_modules  import ContrastiveCRFLoss
 from src.utils.stego_utils import *
@@ -48,7 +49,7 @@ def my_app(cfg: DictConfig) -> None:
     np.random.seed(0)
     torch.random.manual_seed(0)
 
-    small_imsize = imsize // 2
+    small_imsize = utils.imsize // 2
     transform_with_resize = T.Compose([T.Resize((small_imsize, small_imsize)), T.ToTensor(), normalize])
     label_transform_with_resize = T.Compose([T.Resize((small_imsize, small_imsize)), ToTargetTensor()])
 

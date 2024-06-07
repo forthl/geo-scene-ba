@@ -1,11 +1,15 @@
 import lightning.pytorch as pl
 import torch
 import torch.utils.data as data
+from open3d._ml3d.datasets import NuScenes
 
-from nuscenes.nuscenes import NuScenes
+#from nuscenes.nuscenes import NuScenes
 
 from src.data.nuscenes_data_module import nuScenes
-from src.models.test_pytorch import LitAutoEncoder, Encoder, Decoder
+from src.modules.test_pytorch import LitAutoEncoder, Decoder, Encoder
+
+
+#from src.models.test_pytorch import LitAutoEncoder, Encoder, Decoder
 
 def main():
     

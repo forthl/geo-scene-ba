@@ -7,6 +7,8 @@ import torch.multiprocessing
 import torch.nn.functional as F
 
 from datetime import datetime
+
+from lightning import seed_everything
 from omegaconf import DictConfig, OmegaConf
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
