@@ -1,0 +1,9 @@
+numpy
+pillow
+torch, torchvision, torchaudio
+scipy
+git+https://github.com/lucasb-eyer/pydensecrf.git
+pycocotools
+tqdm
+
+data/leftImg8bit/train
