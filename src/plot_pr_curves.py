@@ -5,6 +5,7 @@ import PIL.Image
 import hydra
 import pytorch_lightning as pl
 import seaborn as sns
+from matplotlib import pyplot as plt
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -14,6 +15,7 @@ from torch.utils.tensorboard.summary import hparams
 from torchvision.transforms import ToTensor
 from data import *
 from modules import *
+from src.utils import load_model, UnsupervisedMetrics, get_transform, prep_args
 from train_segmentation import get_class_labels
 
 

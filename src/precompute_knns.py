@@ -1,3 +1,5 @@
+from torch.utils.data import DataLoader
+
 from data import ContrastiveSegDataset
 from modules import *
 import os
@@ -10,6 +12,8 @@ import torch.nn as nn
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.utilities.seed import seed_everything
 from tqdm import tqdm
+
+from src.utils import load_model, prep_args, get_transform
 
 
 def get_feats(model, loader):

@@ -1,8 +1,11 @@
+from torch.distributed.pipeline.sync.dependency import join
 from utils import *
 import hydra
 from omegaconf import DictConfig
 import os
 import wget
+
+from src.utils import prep_args
 
 
 @hydra.main(config_path="configs", config_name="eval_config.yml")

@@ -1,3 +1,4 @@
+from matplotlib import pyplot as plt
 from utils import *
 from modules import *
 from data import *
@@ -14,6 +15,9 @@ import torch.multiprocessing
 import seaborn as sns
 from pytorch_lightning.callbacks import ModelCheckpoint
 import sys
+
+from src.utils import load_model, UnsupervisedMetrics, one_hot_feats, resize, prep_for_plot, remove_axes, add_plot, \
+    get_transform, prep_args
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 

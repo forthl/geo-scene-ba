@@ -1,5 +1,9 @@
 import sys
 
+from matplotlib import pyplot as plt
+
+from src.utils import get_transform, flexible_collate, remove_axes, prep_args, prep_for_plot
+
 print (sys.path)
 from modules import *
 from data import *
@@ -12,7 +16,7 @@ from crf import dense_crf
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from train_segmentation import LitUnsupervisedSegmenter, prep_for_plot, get_class_labels
+from train_segmentation import LitUnsupervisedSegmenter, get_class_labels #prep_for_plot,
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 

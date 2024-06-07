@@ -1,9 +1,11 @@
 import io
+from shlex import join
 
 import PIL.Image
 import matplotlib.pyplot as plt
 import torch
 from tensorboardX import SummaryWriter
+from torch import T
 from torch.nn import Sequential, Linear, LogSoftmax
 from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
@@ -18,7 +20,14 @@ from datetime import datetime
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
+from src import utils
+from src.data import ContrastiveSegDataset
+from src.modules import ContrastiveCRFLoss
+from src.utils import normalize, ToTargetTensor, unnorm, remove_axes
+
+
 def norm(t):
+    from torchgen.context import F
     return F.normalize(t, dim=1, eps=1e-10)
 
 def prep(continuous: bool, t: torch.Tensor):
@@ -45,7 +54,7 @@ def my_app(cfg: DictConfig) -> None:
     np.random.seed(0)
     torch.random.manual_seed(0)
 
-    small_imsize = imsize // 2
+    small_imsize = utils.imsize // 2
     transform_with_resize = T.Compose([T.Resize((small_imsize, small_imsize)), T.ToTensor(), normalize])
     label_transform_with_resize = T.Compose([T.Resize((small_imsize, small_imsize)), ToTargetTensor()])
 

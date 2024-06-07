@@ -1,6 +1,6 @@
 import os
 from os.path import join
-from utils import get_transform, load_model, prep_for_plot, remove_axes, prep_args
+#from utils import get_transform, load_model, prep_for_plot, remove_axes, prep_args
 from modules import FeaturePyramidNet, DinoFeaturizer, sample
 from data import ContrastiveSegDataset
 import hydra
@@ -14,6 +14,9 @@ from pytorch_lightning.utilities.seed import seed_everything
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from matplotlib.colors import ListedColormap
+
+from src import utils
+from src.utils import prep_for_plot, prep_args
 
 
 def plot_heatmap(ax, image, heatmap, cmap="bwr", color=False, plot_img=True, symmetric=True):
@@ -70,7 +73,7 @@ def my_app(cfg: DictConfig) -> None:
     seed_everything(seed=0, workers=True)
     high_res = 512
 
-    transform = get_transform(high_res, False, "center")
+    transform = utils.get_transform(high_res, False, "center")
     use_loader = True
 
     if use_loader:
@@ -80,7 +83,7 @@ def my_app(cfg: DictConfig) -> None:
             crop_type=None,
             image_set="train",
             transform=transform,
-            target_transform=get_transform(high_res, True, "center"),
+            target_transform=utils.get_transform(high_res, True, "center"),
             cfg=cfg,
             aug_geometric_transform=None,
             aug_photometric_transform=None,
@@ -93,7 +96,7 @@ def my_app(cfg: DictConfig) -> None:
 
     data_dir = join(cfg.output_root, "data")
     if cfg.arch == "feature-pyramid":
-        cut_model = load_model(cfg.model_type, data_dir).cuda()
+        cut_model = utils.load_model(cfg.model_type, data_dir).cuda()
         net = FeaturePyramidNet(cfg.granularity, cut_model, cfg.dim, cfg.continuous)
     elif cfg.arch == "dino":
         net = DinoFeaturizer(cfg.dim, cfg)
@@ -129,7 +132,7 @@ def my_app(cfg: DictConfig) -> None:
 
             plt.style.use('dark_background')
             fig, axes = plt.subplots(1, 3, figsize=(3 * 5, 1 * 5), dpi=100)
-            remove_axes(axes)
+            utils.remove_axes(axes)
             axes[0].set_title("Image and Query Points", fontsize=20)
             axes[1].set_title("Self Correspondence", fontsize=20)
             axes[2].set_title("KNN Correspondence", fontsize=20)
@@ -143,7 +146,7 @@ def my_app(cfg: DictConfig) -> None:
 
                 plot_img = point_num == 0
                 if plot_img:
-                    axes[0].imshow(prep_for_plot(img[0]))
+                    axes[0].imshow(utils.prep_for_plot(img[0]))
                 axes[0].scatter(img_point_h, img_point_w,
                                 c=colors[point_num], marker="x", s=500, linewidths=5)
 
@@ -175,7 +178,7 @@ def my_app(cfg: DictConfig) -> None:
 
             plt.style.use('dark_background')
             fig, axes = plt.subplots(1, 3, figsize=(3 * 5, 1 * 5), dpi=100)
-            remove_axes(axes)
+            utils.remove_axes(axes)
             axes[0].set_title("Image and Query Points", fontsize=20)
             axes[1].set_title("Self Correspondence", fontsize=20)
             axes[2].set_title("KNN Correspondence", fontsize=20)

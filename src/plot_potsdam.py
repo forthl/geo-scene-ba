@@ -1,10 +1,13 @@
 from collections import defaultdict
 import hydra
 import torch.multiprocessing
+from matplotlib import pyplot as plt
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 from data import *
 from modules import *
+from src import utils
+from src.utils import get_transform, flexible_collate, prep_args
 from train_segmentation import LitUnsupervisedSegmenter
 
 
@@ -79,7 +82,7 @@ def my_app(cfg: DictConfig) -> None:
     print(crf_probs.shape)
 
     reshaped_label = outputs['label'].reshape(15, 15, 320, 320).permute(0, 2, 1, 3).reshape(320 * 15, 320 * 15)
-    reshaped_img = unnorm(full_image).permute(1, 2, 0)
+    reshaped_img = utils.unnorm(full_image).permute(1, 2, 0)
     reshaped_preds = model.test_cluster_metrics.map_clusters(np.expand_dims(crf_probs.argmax(0), 0))
 
     fig, ax = plt.subplots(1, 3, figsize=(4 * 3, 4))
@@ -90,8 +93,8 @@ def my_app(cfg: DictConfig) -> None:
     Image.fromarray(reshaped_img.cuda()).save(join(join(result_dir, "img", str(img_num) + ".png")))
     Image.fromarray(reshaped_preds).save(join(join(result_dir, "cluster", str(img_num) + ".png")))
 
-    remove_axes(ax)
-    plt.show()
+    utils.remove_axes(ax)
+    utils.plt.show()
 
 if __name__ == "__main__":
     prep_args()
