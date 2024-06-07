@@ -53,7 +53,7 @@ class CityscapesDepth(Dataset):
             torch.manual_seed(seed)
             image = self.transform(image)
             depth_trans = T.Compose([T.Resize((320,320), Image.NEAREST),T.CenterCrop(320)])
-            depth = numpy.array(depth_trans(depth))
+            depth = np.array(depth_trans(depth))
             random.seed(seed)
             torch.manual_seed(seed)
             target = self.target_transform(target)
