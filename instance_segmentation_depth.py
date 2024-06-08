@@ -12,14 +12,14 @@ from click.core import F
 
 from depth_dataset import ContrastiveDepthDataset
 from eval_segmentation import batched_crf
-from src.modules import *
+from src.modules.stego_modules import *
 import hydra
 import torch.multiprocessing
 from PIL import Image
 from src.crf import  dense_crf
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Dataset
-import json_to_binary_mask as Json2BinMask
+import src.utils.json_to_binary_mask as Json2BinMask
 from train_segmentation import LitUnsupervisedSegmenter
 from tqdm import tqdm
 import random

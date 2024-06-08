@@ -12,7 +12,7 @@ import numpy as np
 from tqdm import tqdm
 
 from networks import get_model
-from models.CutLER.third_party.TokenCut.datasets import ImageDataset, Dataset, bbox_iou
+from datasets_file import ImageDataset, Dataset, bbox_iou
 from visualizations import visualize_eigvec, visualize_predictions
 from object_discovery import ncut
 import time

@@ -170,6 +170,7 @@ def eval_linear(args):
             
             if best_acc < float(test_stats['acc1']):
                   best_acc = float(test_stats['acc1'])
+                  checkpoint_path = torch.load("checkpoint.pth")
                   shutil.copyfile(checkpoint_path, args.output_dir + '/model_best.pth')
             print(f'Max accuracy so far: {best_acc:.2f}%')
     print("Training of the supervised linear classifier on frozen features completed.\n"

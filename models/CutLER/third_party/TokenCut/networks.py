@@ -5,7 +5,7 @@ Code adapted from LOST: https://github.com/valeoai/LOST
 
 import torch
 
-import utils.dino.vision_transformer as vits
+import dino.vision_transformer as vits
 #import moco.vits as vits_moco
 
 def get_model(arch, patch_size, device):
