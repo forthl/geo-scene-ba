@@ -1,8 +1,12 @@
 import os
+import re
+
 import torch
 import numpy as np
 import pandas as pd
 from PIL import Image
+from bs4 import BeautifulSoup
+from fastapi import requests
 from tqdm import tqdm
 from collections import defaultdict
 from torchvision.datasets.folder import default_loader
