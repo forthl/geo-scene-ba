@@ -74,3 +74,27 @@ class KMeans:
         print(centroid_idxs)
 
         return centroids, centroid_idxs
+
+
+"""
+# Sample data generation
+np.random.seed(42)
+data = np.random.rand(100, 2)  # Example 100 data points in 2D space
+
+# Create an instance of KMeans with k=3 clusters
+kmeans = KMeans(k_clusters=3, max_iter=200)
+
+# Fit the KMeans model to the data
+kmeans.fit(data)
+
+# Evaluate the model by assigning data points to centroids
+assigned_centroids, centroid_indices = kmeans.evaluate(data)
+
+# Print the assigned centroids and centroid indices
+print("Assigned Centroids:")
+for centroid in assigned_centroids:
+    print(centroid)
+
+print("\nCentroid Indices:")
+print(centroid_indices)
+"""
