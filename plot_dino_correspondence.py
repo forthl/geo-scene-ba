@@ -1,8 +1,11 @@
 import os
 from os.path import join
+
+from lightning import seed_everything
+
 from utils import get_transform, load_model, prep_for_plot, remove_axes, prep_args
-from modules import FeaturePyramidNet, DinoFeaturizer, sample
-from data import ContrastiveSegDataset
+from src.modules.stego_modules import FeaturePyramidNet, DinoFeaturizer, sample
+from src.data.stego_data_utils import ContrastiveSegDataset
 import hydra
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
@@ -10,7 +13,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from omegaconf import DictConfig, OmegaConf
-from pytorch_lightning.utilities.seed import seed_everything
+#from pytorch_lightning.utilities.seed import seed_everything
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from matplotlib.colors import ListedColormap

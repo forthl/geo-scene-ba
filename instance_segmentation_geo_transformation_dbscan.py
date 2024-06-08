@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Dataset
 import maskDepth2 as maskD
 from train_segmentation import LitUnsupervisedSegmenter
 from tqdm import tqdm
-from utils import get_depth_transform, get_transform
+from src.utils.stego_utils import get_depth_transform, get_transform
 import torchvision.transforms as T
 import evaluation_utils as eval_utils
 from src.drive_seg.geo_transformations import labelRangeImage

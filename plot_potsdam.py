@@ -3,8 +3,8 @@ import hydra
 import torch.multiprocessing
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
-from data import *
-from modules import *
+from src.data.stego_data_utils import *
+from src.modules.stego_modules import *
 from train_segmentation import LitUnsupervisedSegmenter
 
 

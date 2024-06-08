@@ -8,7 +8,8 @@ import pydensecrf.utils as utils
 import torch
 import torch.nn.functional as F
 import torchvision.transforms.functional as VF
-from utils import unnorm
+import utils
+
 
 MAX_ITER = 10
 POS_W = 3
@@ -20,7 +21,7 @@ BGR_MEAN = np.array([104.008, 116.669, 122.675])
 
 
 def dense_crf(image_tensor: torch.FloatTensor, output_logits: torch.FloatTensor):
-    image = np.array(VF.to_pil_image(unnorm(image_tensor)))[:, :, ::-1]
+    image = np.array(VF.to_pil_image(utils.unnorm(image_tensor)))[:, :, ::-1]
     H, W = image.shape[:2]
     image = np.ascontiguousarray(image)
 

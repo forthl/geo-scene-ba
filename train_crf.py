@@ -7,6 +7,9 @@ from tensorboardX import SummaryWriter
 from torch.nn import Sequential, Linear, LogSoftmax
 from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
+
+from src.data.stego_data_utils import ContrastiveSegDataset
+from src.modules.stego_modules import ContrastiveCRFLoss
 from utils import *
 from tqdm import tqdm
 from torch.utils.data import DataLoader

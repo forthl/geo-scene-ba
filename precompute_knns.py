@@ -1,5 +1,7 @@
-from data import ContrastiveSegDataset
-from modules import *
+from lightning import seed_everything
+
+from src.data.stego_data_utils import ContrastiveSegDataset
+from src.modules.stego_modules import *
 import os
 from os.path import join
 import hydra
@@ -8,7 +10,7 @@ import torch.multiprocessing
 import torch.multiprocessing
 import torch.nn as nn
 from omegaconf import DictConfig, OmegaConf
-from pytorch_lightning.utilities.seed import seed_everything
+#from pytorch_lightning.utilities.seed import seed_everything
 from tqdm import tqdm
 
 
@@ -48,7 +50,7 @@ def my_app(cfg: DictConfig) -> None:
     n_batches = 16
 
     if cfg.arch == "dino":
-        from modules import DinoFeaturizer, LambdaLayer
+        from src.modules.stego_modules import DinoFeaturizer, LambdaLayer
         no_ap_model = torch.nn.Sequential(
             DinoFeaturizer(20, cfg),  # dim doesent matter
             LambdaLayer(lambda p: p[0]),
