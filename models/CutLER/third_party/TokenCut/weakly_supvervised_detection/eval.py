@@ -1,9 +1,7 @@
 import argparse
-import os
 import sys
-import torch 
-import shutil
-import utils
+import torch
+from models.CutLER.third_party.TokenCut.weakly_supvervised_detection import utils
 import numpy as np
 import metrics
 import torch.nn as nn
@@ -13,8 +11,8 @@ import vision_transformer as vits
 from tqdm import tqdm
 from datasets import build_dataset
 from meters import AverageEpochMeter
-from object_discovery import ncut, detect_box, get_feats
-from visualization import visualize_fms, visualize_predictions_gt, visualize_img, visualize_eigvec
+from object_discovery import ncut, get_feats
+from visualization import visualize_predictions_gt, visualize_eigvec
 
 from collections import OrderedDict
 #from visualizations import visualize_img, visualize_eigvec, visualize_gt, visualize_fms, visualize_predictions, visualize_predictions_gt
@@ -170,7 +168,7 @@ if __name__=='__main__':
     parser.add_argument('--n_last_blocks', default=4, type=int, help="""Concatenate [CLS] tokens
         for the `n` last blocks. We use `n=4` when evaluating ViT-Small and `n=1` with ViT-Base.""")
     parser.add_argument('--avgpool_patchtokens', default=False, type=utils.bool_flag,
-        help="""Whether ot not to concatenate the global average pooled features to the [CLS] token.
+                        help="""Whether ot not to concatenate the global average pooled features to the [CLS] token.
         We typically set this to False for ViT-Small and to True with ViT-Base.""")
     parser.add_argument('--arch', default='vit_small', type=str, help='Architecture')
     parser.add_argument('--dataset', default='cub', type=str, choices=['cub', 'imagenet'], help='Architecture')

@@ -22,7 +22,7 @@ from scipy.linalg import eigh
 from scipy import ndimage
 import json
 
-from models.CutLER.third_party.TokenCut.unsupervised_saliency_detection import utils, metric
+from models.CutLER.third_party.TokenCut.unsupervised_saliency_detection import metric, utils
 from models.CutLER.third_party.TokenCut.unsupervised_saliency_detection.object_discovery import detect_box
 
 # crf codes are are modfied based on https://github.com/lucasb-eyer/pydensecrf/blob/master/pydensecrf/tests/test_dcrf.py

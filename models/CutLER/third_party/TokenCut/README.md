@@ -85,7 +85,7 @@ pip install -r requirements.txt
 
 ### 2.2 Data
 
-We provide quick download commands in [DOWNLOAD_DATA.md](./DOWNLOAD_DATA.md) for VOC2007, VOC2012, COCO, CUB, ImageNet, ECSSD, DUTS and DUT-OMRON as well as DINO checkpoints.
+We provide quick download commands in [DOWNLOAD_DATA.md](DOWNLOAD_DATA.md) for VOC2007, VOC2012, COCO, CUB, ImageNet, ECSSD, DUTS and DUT-OMRON as well as DINO checkpoints.
 
 
 ## 3. Quick Start

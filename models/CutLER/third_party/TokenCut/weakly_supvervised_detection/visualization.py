@@ -1,8 +1,6 @@
 """
 Vis utilities. Code adapted from LOST: https://github.com/valeoai/LOST
 """
-import cv2
-import numpy as np
 from PIL import Image
 import cv2
 import scipy
@@ -10,7 +8,7 @@ import numpy as np
 import torch
 import torch.nn as nn
        
-from utils import unnormalize_images
+from models.CutLER.third_party.TokenCut.weakly_supvervised_detection.utils import unnormalize_images
 import matplotlib.pyplot as plt
 
 def visualize_img(image):

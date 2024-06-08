@@ -4,20 +4,17 @@ import dino # model
 
 import object_discovery as tokencut
 import argparse
-import utils
+from models.CutLER.third_party.TokenCut.unsupervised_saliency_detection import utils
 import bilateral_solver
 import os
 
 from shutil import copyfile
 import PIL.Image as Image
-import cv2
 import numpy as np
 from tqdm import tqdm
 
 from torchvision import transforms
 import metric
-import matplotlib.pyplot as plt
-import skimage
 import torch
 
 # Image transformation applied to all images

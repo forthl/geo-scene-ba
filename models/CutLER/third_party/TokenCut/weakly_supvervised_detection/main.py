@@ -21,23 +21,17 @@ import datetime
 
 import torch
 from torch import nn
-import torch.distributed as dist
 import torch.backends.cudnn as cudnn
-from torchvision import datasets
-from torchvision import transforms as pth_transforms
-from torchvision import models as torchvision_models
 
-import utils
+from models.CutLER.third_party.TokenCut.weakly_supvervised_detection import utils
 import vision_transformer as vits
 
 from torch.utils.tensorboard import SummaryWriter
 import shutil
-import itertools
 import numpy as np
 
 from timm.scheduler import create_scheduler
-from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
-from timm.data import create_transform
+from timm.loss import SoftTargetCrossEntropy
 from timm.data import Mixup
 
 from samplers import RASampler
@@ -310,7 +304,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_last_blocks', default=4, type=int, help="""Concatenate [CLS] tokens
         for the `n` last blocks. We use `n=4` when evaluating ViT-Small and `n=1` with ViT-Base.""")
     parser.add_argument('--avgpool_patchtokens', default=False, type=utils.bool_flag,
-        help="""Whether ot not to concatenate the global average pooled features to the [CLS] token.
+                        help="""Whether ot not to concatenate the global average pooled features to the [CLS] token.
         We typically set this to False for ViT-Small and to True with ViT-Base.""")
     parser.add_argument('--arch', default='vit_small', choices=['vit_small', 'vit_base'], type=str, help='Architecture')
     parser.add_argument('--dataset', default='cub', type=str, choices=['cub', 'imagenet'], help='Architecture')

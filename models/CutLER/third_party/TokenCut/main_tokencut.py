@@ -3,22 +3,18 @@ Main experiment file. Code adapted from LOST: https://github.com/valeoai/LOST
 """
 import os
 import argparse
-import random
 import pickle
 
 import torch
 import datetime
-import torch.nn as nn
 import numpy as np
 
 from tqdm import tqdm
-from PIL import Image
 
 from networks import get_model
-from datasets import ImageDataset, Dataset, bbox_iou
-from visualizations import visualize_img, visualize_eigvec, visualize_predictions, visualize_predictions_gt 
-from object_discovery import ncut 
-import matplotlib.pyplot as plt
+from models.CutLER.third_party.TokenCut.datasets import ImageDataset, Dataset, bbox_iou
+from visualizations import visualize_eigvec, visualize_predictions
+from object_discovery import ncut
 import time
 
 if __name__ == "__main__":
