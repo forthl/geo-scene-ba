@@ -183,7 +183,7 @@ def point_cloud_three_views_demo():
 
 
 if __name__ == "__main__":
-    from src.utils.data_utils.ShapeNetDataLoader import load_data
+    from torch.utils.data.dataloader import load_data #was from src.utils.data_utils.ShapeNetDataLoader import load_data
     point_cloud_three_views_demo()
 
 import matplotlib.pyplot as plt

@@ -3,18 +3,23 @@ Main experiment file. Code adapted from LOST: https://github.com/valeoai/LOST
 """
 import os
 import argparse
+import random
 import pickle
 
 import torch
 import datetime
+import torch.nn as nn
 import numpy as np
 
 from tqdm import tqdm
+from PIL import Image
+
 
 from networks import get_model
 from datasets_file import ImageDataset, Dataset, bbox_iou
 from visualizations import visualize_eigvec, visualize_predictions
 from object_discovery import ncut
+import matplotlib.pyplot as plt
 import time
 
 if __name__ == "__main__":
@@ -233,7 +238,8 @@ if __name__ == "__main__":
                 # Baseline: compute DINO segmentation technique proposed in the DINO paper
                 # and select the biggest component
                 if args.dinoseg:
-                    pred = dino_seg(attentions, (w_featmap, h_featmap), args.patch_size, head=args.dinoseg_head)
+                    #dino_seg eig ohne args
+                    pred = args.dino_seg(attentions, (w_featmap, h_featmap), args.patch_size, head=args.dinoseg_head)
                     pred = np.asarray(pred)
                 else:
                     # Extract the qkv features of the last attention layer

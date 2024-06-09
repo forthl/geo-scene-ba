@@ -48,7 +48,7 @@ def my_app(cfg: DictConfig) -> None:
     np.random.seed(0)
     torch.random.manual_seed(0)
 
-    small_imsize = imsize // 2
+    small_imsize = plt.imsize // 2 # ka was imsize ist
     transform_with_resize = T.Compose([T.Resize((small_imsize, small_imsize)), T.ToTensor(), normalize])
     label_transform_with_resize = T.Compose([T.Resize((small_imsize, small_imsize)), ToTargetTensor()])
 
