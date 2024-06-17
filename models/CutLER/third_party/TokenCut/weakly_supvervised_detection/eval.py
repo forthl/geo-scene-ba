@@ -1,7 +1,8 @@
 import argparse
 import sys
 import torch
-from models.CutLER.third_party.TokenCut.weakly_supvervised_detection import utils
+#from models.CutLER.third_party.TokenCut.weakly_supvervised_detection import utils
+import utils
 import numpy as np
 import metrics
 import torch.nn as nn

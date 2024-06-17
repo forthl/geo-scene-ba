@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="forl@atcremers53.in.tum.de:58022 password (3)" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="forl@atcremers53.in.tum.de:58022 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/tmp/pycharm_project_383" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="forl@atcremers53.in.tum.de:58022 password (2)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/stud/forl/geo-scene" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="forl@atcremers53.in.tum.de:58022 password (3)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/stud/forl/geo-scene" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="forl@atcremers66.in.tum.de:58022 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/tmp/pycharm_project_15" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>

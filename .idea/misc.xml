@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.11" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="$USER_HOME$/anaconda3/envs/mamba" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.10.12 (sftp://forl@atcremers53.in.tum.de:58022/home/stud/forl/.virtualenvs/geo-scene/bin/python) (2)" project-jdk-type="Python SDK" />
 </project>
