@@ -1,6 +1,6 @@
 from random import random
 
-from lightning_fabric import seed_everything
+from lightning import seed_everything
 
 from src.data.stego_data_utils import create_pascal_label_colormap, create_cityscapes_colormap, ContrastiveSegDataset
 from src.modules.stego_modules import FeaturePyramidNet, DinoFeaturizer, ClusterLookup, ContrastiveCRFLoss, \
@@ -369,7 +369,8 @@ class LitUnsupervisedSegmenter(pl.LightningModule):
                 self.log_dict(tb_metrics)
 
                 if self.trainer.is_global_zero and self.cfg.azureml_logging:
-                    from azureml.core.run import Run
+                    #from azureml.core.run import Run
+                    from azureml import Run
                     run_logger = Run.get_context()
                     for metric, value in tb_metrics.items():
                         run_logger.log(metric, value)

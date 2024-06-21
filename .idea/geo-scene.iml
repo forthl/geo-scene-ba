@@ -2,7 +2,7 @@
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$" />
-    <orderEntry type="jdk" jdkName="Remote Python 3.10.12 (sftp://forl@atcremers53.in.tum.de:58022/home/stud/forl/.virtualenvs/geo-scene/bin/python) (2)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Remote Python 3.10.12 (sftp://forl@atcremers53.in.tum.de:58022/home/stud/forl/miniforge3/envs/geo-python10/bin/python)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

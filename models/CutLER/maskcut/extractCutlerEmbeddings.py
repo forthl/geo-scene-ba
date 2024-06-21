@@ -25,7 +25,7 @@ import json
 from models.CutLER.third_party.TokenCut.unsupervised_saliency_detection import metric, utils
 from models.CutLER.third_party.TokenCut.unsupervised_saliency_detection.object_discovery import detect_box
 
-# crf codes are are modfied based on https://github.com/lucasb-eyer/pydensecrf/blob/master/pydensecrf/tests/test_dcrf.py
+# crf codes are modfied based on https://github.com/lucasb-eyer/pydensecrf/blob/master/pydensecrf/tests/test_dcrf.py
 from crf import densecrf
 
 # Image transformation applied to all images
