@@ -44,7 +44,7 @@ class CUB200(Dataset):
             os.path.join(self.root, 'CUB_200_2011', 'train_test_split.txt'),
             sep=' ', names=['id', 'is_train'])
         orig_image_sizes = pd.read_csv(
-            os.path.join(self.root, 'CUB_200_2011', 'image_sizes.txt'),
+           os.path.join(self.root, 'CUB_200_2011', 'image_sizes.txt'),
             sep=' ', names=['id', 'width', 'height'])
         bboxes = pd.read_csv(
             os.path.join(self.root, 'CUB_200_2011', 'bounding_boxes.txt'),

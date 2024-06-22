@@ -1,9 +1,11 @@
-from re import T
+
+
 
 import torchvision
 from lightning import seed_everything
 from torch.distributed.pipeline.sync.dependency import join
 from torchvision.tv_tensors import Image
+from PIL import Image
 
 from src.modules import *
 import os
@@ -85,14 +87,14 @@ class RandomCropComputer(Dataset):
     def __init__(self, cfg, dataset_name, img_set, crop_type, crop_ratio):
         self.pytorch_data_dir = cfg.pytorch_data_dir
         self.crop_ratio = crop_ratio
-        self.save_dir = join(
+        self.save_dir = os.path.join(
             cfg.pytorch_data_dir, "cropped", "{}_{}_crop_{}".format(dataset_name, crop_type, crop_ratio))
         self.img_set = img_set
         self.dataset_name = dataset_name
         self.cfg = cfg
 
-        self.img_dir = join(self.save_dir, "img", img_set)
-        self.label_dir = join(self.save_dir, "label", img_set)
+        self.img_dir = os.path.join(self.save_dir, "img", img_set)
+        self.label_dir = os.path.join(self.save_dir, "label", img_set)
         os.makedirs(self.img_dir, exist_ok=True)
         os.makedirs(self.label_dir, exist_ok=True)
 
@@ -108,7 +110,7 @@ class RandomCropComputer(Dataset):
             dataset_name,
             None,
             img_set,
-            T.ToTensor(),
+            torchvision.transforms.ToTensor(),
             ToTargetTensor(),
             cfg=cfg,
             num_neighbors=cfg.num_neighbors,
@@ -127,9 +129,9 @@ class RandomCropComputer(Dataset):
         for crop_num, (img, label) in enumerate(zip(imgs, labels)):
             img_num = item * 5 + crop_num
             img_arr = img.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy()
-            label_arr = (label + 1).unsqueeze(0).permute(1, 2, 0).to('cpu', torch.uint8).numpy().squeeze(-1)
-            Image.fromarray(img_arr).save(join(self.img_dir, "{}.jpg".format(img_num)), 'JPEG')
-            Image.fromarray(label_arr).save(join(self.label_dir, "{}.png".format(img_num)), 'PNG')
+            label_arr = (label + 1).unsqueeze(0).permute(1, 2, 3, 0).to('cpu', torch.uint8).numpy().squeeze(-1)
+            Image.fromarray(img_arr).save(os.path.join(self.img_dir, "{}.jpg".format(img_num)), 'JPEG')
+            Image.fromarray(label_arr).save(os.path.join(self.label_dir, "{}.png".format(img_num)), 'PNG')
         return True
 
     def __len__(self):

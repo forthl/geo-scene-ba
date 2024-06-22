@@ -1,6 +1,6 @@
 output_root: '../src'
-pytorch_data_dir: '/home/endrit/geo-scene/data'
-results_dir: '/home/endrit/geo-scene/results/predictions/'
+pytorch_data_dir: '/home/stud/forl/geo-scene/data'
+results_dir: '/home/stud/forl/geo-scene/results/predictions/'
 experiment_name: "cityscapes"
 clustering_algorithm: "dbscan"
 epsilon: 600 #used if dbscan is the clustering algorithm

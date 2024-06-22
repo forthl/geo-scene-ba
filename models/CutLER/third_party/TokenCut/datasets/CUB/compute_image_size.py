@@ -18,6 +18,6 @@ def store_cub_image_sizes(root):
     sizes.to_csv(path_or_buf=save_path, sep=' ', index=False, header=False)
 
 if __name__ == '__main__':
-    root = '.'
+    root = '/home/stud/forl/storage/user/forl/CUB'
     print('Storing image sizes of cub200 dataset')
     store_cub_image_sizes(root)

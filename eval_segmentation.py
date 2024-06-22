@@ -1,6 +1,6 @@
 import os
 import sys
-
+from os.path import join
 import numpy as np
 from click.core import F
 from matplotlib import pyplot as plt
@@ -71,10 +71,10 @@ def batched_crf(pool, img_tensor, prob_tensor):
 def my_app(cfg: DictConfig) -> None:
     pytorch_data_dir = cfg.pytorch_data_dir
     result_dir = "../results/predictions/{}".format(cfg.experiment_name)
-    os.makedirs(join(result_dir, "img"), exist_ok=True)
-    os.makedirs(join(result_dir, "label"), exist_ok=True)
-    os.makedirs(join(result_dir, "cluster"), exist_ok=True)
-    os.makedirs(join(result_dir, "picie"), exist_ok=True)
+    os.makedirs(os.path.join(result_dir, "img"), exist_ok=True)
+    os.makedirs(os.path.join(result_dir, "label"), exist_ok=True)
+    os.makedirs(os.path.join(result_dir, "cluster"), exist_ok=True)
+    os.makedirs(os.path.join(result_dir, "picie"), exist_ok=True)
 
     for model_path in cfg.model_paths:
         model = LitUnsupervisedSegmenter.load_from_checkpoint(model_path)
@@ -193,8 +193,8 @@ def my_app(cfg: DictConfig) -> None:
             for i, img_num in enumerate(good_images):
                 plot_img = (prep_for_plot(saved_data["img"][img_num]) * 255).numpy().astype(np.uint8)
                 plot_label = (model.label_cmap[saved_data["label"][img_num]]).astype(np.uint8)
-                Image.fromarray(plot_img).save(join(join(result_dir, "img", str(img_num) + ".jpg")))
-                Image.fromarray(plot_label).save(join(join(result_dir, "label", str(img_num) + ".png")))
+                Image.fromarray(plot_img).save(os.path.join(result_dir, "img", str(img_num) + ".jpg"))
+                Image.fromarray(plot_label).save(os.path.join(result_dir, "label", str(img_num) + ".png"))
 
                 ax[0, i].imshow(plot_img)
                 ax[1, i].imshow(plot_label)
@@ -203,12 +203,12 @@ def my_app(cfg: DictConfig) -> None:
                         model.test_cluster_metrics.map_clusters(
                             saved_data["cluster_preds"][img_num])]) \
                         .astype(np.uint8)
-                    Image.fromarray(plot_cluster).save(join(join(result_dir, "cluster", str(img_num) + ".png")))
+                    Image.fromarray(plot_cluster).save(os.path.join(result_dir, "cluster", str(img_num) + ".png"))
                     ax[2, i].imshow(plot_cluster)
                 if run_picie:
                     picie_img = model.label_cmap[saved_data["picie_preds"][img_num]].astype(np.uint8)
                     ax[3, i].imshow(picie_img)
-                    Image.fromarray(picie_img).save(join(join(result_dir, "picie", str(img_num) + ".png")))
+                    Image.fromarray(picie_img).save(os.path.join(result_dir, "picie", str(img_num) + ".png"))
 
             ax[0, 0].set_ylabel("Image", fontsize=26)
             ax[1, 0].set_ylabel("Label", fontsize=26)
