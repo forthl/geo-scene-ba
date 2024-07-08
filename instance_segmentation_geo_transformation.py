@@ -148,9 +148,9 @@ def my_app(cfg: DictConfig) -> None:
                     plotted_filtered.astype(np.uint8))
                 # plotted_img.show()
 
-                # if cfg.resize_to_original:
-                #     plotted_filtered = resize_mask(plotted_filtered, image_shape)
-                #     plotted_img = Image.fromarray(plotted_filtered[0].astype(np.uint8))
+                if cfg.resize_to_original:
+                    plotted_filtered = resize_mask(plotted_filtered, image_shape)
+                    plotted_img = Image.fromarray(plotted_filtered[0].astype(np.uint8))
 
                 masks = maskD.get_segmentation_masks(plotted_img)
                 # remove the first element which is the mask containing pixels which are classes with no atributtes(e.g. road buildingi)

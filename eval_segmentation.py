@@ -23,6 +23,8 @@ from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from train_segmentation import LitUnsupervisedSegmenter, prep_for_plot, get_class_labels
+import logging
+from multiprocessing import TimeoutError
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 
@@ -62,11 +64,98 @@ def _apply_crf(tup):
     return dense_crf(tup[0], tup[1])
 
 
+def debug_batched_crf_first_100(pool, img_tensor, prob_tensor):
+    # Ensure there are at least 100 instances, or take the maximum available
+    max_instances = min(100, img_tensor.size(0))
+
+    # Extract the first 100 instances from both tensors
+    first_100_img_instances = img_tensor.detach().cpu()[:max_instances]
+    first_100_prob_instances = prob_tensor.detach().cpu()[:max_instances]
+
+    # Prepare inputs for _apply_crf function
+    inputs = zip(first_100_img_instances, first_100_prob_instances)
+
+    # Apply CRF to each instance using multiprocessing Pool
+    outputs = pool.map(_apply_crf, inputs)
+
+    # Convert the results back to tensors, unsqueeze, and concatenate
+    result_tensor = torch.cat([torch.from_numpy(arr).unsqueeze(0) for arr in outputs], dim=0)
+
+    return result_tensor
+
+
+def debug_apply_crf_all_instances(pool, img_tensor, prob_tensor):
+    # Extrahieren aller Instanzen aus beiden Tensoren
+    all_img_instances = img_tensor.detach().cpu()
+    all_prob_instances = prob_tensor.detach().cpu()
+
+    # Direkte Anwendung von _apply_crf auf alle Instanzen
+    results = [_apply_crf((img, prob)) for img, prob in zip(all_img_instances, all_prob_instances)]
+
+    # Konvertieren der Ergebnisse zurück in Tensoren und Zusammenfügen in einer Liste
+    result_tensors = torch.cat([torch.from_numpy(result).unsqueeze(0) for result in results], dim=0)
+
+    return result_tensors
+
+def debug_apply_crf_first_two(pool, img_tensor, prob_tensor):
+    # Extrahieren der ersten beiden Instanzen aus beiden Tensoren
+    first_two_img_instances = img_tensor.detach().cpu()[:2]
+    first_two_prob_instances = prob_tensor.detach().cpu()[:2]
+
+    # Direkte Anwendung von _apply_crf auf die ersten beiden Instanzen
+    results = [_apply_crf((img, prob)) for img, prob in zip(first_two_img_instances, first_two_prob_instances)]
+
+    # Konvertieren der Ergebnisse zurück in Tensoren und Zusammenfügen in einer Liste
+    result_tensors = torch.cat([torch.from_numpy(result).unsqueeze(0) for result in results], dim=0)
+
+    return result_tensors
+
+def debug_apply_crf(pool, img_tensor, prob_tensor):
+    # Extract the first instance from both tensors
+    first_img_instance = img_tensor.detach().cpu()[0]
+    first_prob_instance = prob_tensor.detach().cpu()[0]
+
+    # Directly apply _apply_crf to the first instance
+    result = _apply_crf((first_img_instance, first_prob_instance))
+
+    # Convert the result back to a tensor and return
+    return torch.from_numpy(result).unsqueeze(0)
+
+
 def batched_crf(pool, img_tensor, prob_tensor):
     outputs = pool.map(_apply_crf, zip(img_tensor.detach().cpu(), prob_tensor.detach().cpu()))
     return torch.cat([torch.from_numpy(arr).unsqueeze(0) for arr in outputs], dim=0)
 
 
+"""
+def batched_crf(pool, img_tensor, prob_tensor):
+    print(f"img_tensor size: {img_tensor.size()}")
+    print(f"prob_tensor size: {prob_tensor.size()}")
+    inputs = zip(img_tensor.detach().cpu(), prob_tensor.detach().cpu())
+    print(inputs)
+
+    results = []
+
+    # Logging start
+    logging.info("Starting batched_crf")
+
+    for inp in inputs:
+        result = pool.apply_async(_apply_crf, args=(inp,))
+        try:
+            output = result.get(timeout=10)  # 10 Sekunden Timeout
+            results.append(output)
+        except TimeoutError:
+            logging.error("A _apply_crf call timed out.")
+
+    # Zusammenführen der Ergebnisse
+    combined_results = torch.cat([torch.from_numpy(arr).unsqueeze(0) for arr in results], dim=0)
+
+    # Logging end
+    logging.info("Finished batched_crf")
+
+    return combined_results
+
+"""
 @hydra.main(config_path="configs", config_name="eval_config.yml")
 def my_app(cfg: DictConfig) -> None:
     pytorch_data_dir = cfg.pytorch_data_dir

@@ -15,6 +15,7 @@ from tqdm import tqdm
 
 
 def get_feats(model, loader):
+    print(f"Dataset size: {len(loader.dataset)}")
     all_feats = []
     for pack in tqdm(loader):
         img = pack["img"]
@@ -38,9 +39,9 @@ def my_app(cfg: DictConfig) -> None:
     print(data_dir)
     print(cfg.output_root)
 
-    image_sets = ["val", "train"]
-    dataset_names = ["cocostuff27", "cityscapes", "potsdam"]
-    crop_types = ["five", None]
+    image_sets = ["train"]
+    dataset_names = ["cocostuff27"]
+    crop_types = ["five"]
 
     # Uncomment these lines to run on custom datasets
     #dataset_names = ["directory"]
@@ -70,6 +71,7 @@ def my_app(cfg: DictConfig) -> None:
 
                 if not os.path.exists(feature_cache_file):
                     print("{} not found, computing".format(feature_cache_file))
+                    print(f"dataset_name: {dataset_name}")
                     dataset = ContrastiveSegDataset(
                         pytorch_data_dir=pytorch_data_dir,
                         dataset_name=dataset_name,
@@ -80,7 +82,8 @@ def my_app(cfg: DictConfig) -> None:
                         cfg=cfg,
                     )
 
-                    loader = DataLoader(dataset, 256, shuffle=False, num_workers=cfg.num_workers, pin_memory=False)
+
+                    loader = DataLoader(dataset, 1, shuffle=False, num_workers=cfg.num_workers, pin_memory=False)
 
                     with torch.no_grad():
                         normed_feats = get_feats(par_model, loader)

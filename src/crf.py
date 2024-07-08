@@ -4,11 +4,12 @@
 
 import numpy as np
 import pydensecrf.densecrf as dcrf
-import pydensecrf.utils as utils
+import pydensecrf.utils as putils
 import torch
 import torch.nn.functional as F
 import torchvision.transforms.functional as VF
-import utils
+from src.utils.stego_utils import unnorm
+
 
 
 MAX_ITER = 10
@@ -21,7 +22,7 @@ BGR_MEAN = np.array([104.008, 116.669, 122.675])
 
 
 def dense_crf(image_tensor: torch.FloatTensor, output_logits: torch.FloatTensor):
-    image = np.array(VF.to_pil_image(utils.unnorm(image_tensor)))[:, :, ::-1]
+    image = np.array(VF.to_pil_image(unnorm(image_tensor)))[:, :, ::-1]
     H, W = image.shape[:2]
     image = np.ascontiguousarray(image)
 
@@ -33,7 +34,7 @@ def dense_crf(image_tensor: torch.FloatTensor, output_logits: torch.FloatTensor)
     h = output_probs.shape[1]
     w = output_probs.shape[2]
 
-    U = utils.unary_from_softmax(output_probs)
+    U = putils.unary_from_softmax(output_probs)
     U = np.ascontiguousarray(U)
 
     d = dcrf.DenseCRF2D(w, h, c)

@@ -117,7 +117,7 @@ class Cityscapes_Depth(VisionDataset):
         super(Cityscapes_Depth, self).__init__(root, transforms, transform, target_transform)
         self.mode = 'gtFine' if mode == 'fine' else 'gtCoarse'
         self.images_dir = os.path.join(self.root, 'leftImg8bit', split)
-        self.depth_dir = os.path.join(self.root,  "disparity", split)
+        self.depth_dir = os.path.join(self.root,  "disparity", "disparity_trainvaltest", "disparity", split)
         self.targets_dir = os.path.join(self.root, self.mode, split)
         self.target_type = target_type
         self.split = split
@@ -195,6 +195,7 @@ class Cityscapes_Depth(VisionDataset):
         """
 
         image = Image.open(self.images[index]).convert('RGB')
+        print("self.disparity", self.disparity[index])
 
         disparity = cv2.imread(self.disparity[index], cv2.IMREAD_UNCHANGED).astype(np.float64)
         disparity = np.where(disparity > 0, (disparity-1)/256,0)

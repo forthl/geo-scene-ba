@@ -317,7 +317,7 @@ if __name__ == '__main__':
     parser.add_argument("--dist_url", default="env://", type=str, help="""url used to set up
         distributed training; see https://pytorch.org/docs/stable/distributed.html""")
     parser.add_argument("--local_rank", default=0, type=int, help="Please ignore and do not set this argument.")
-    parser.add_argument('--data_path', default='/home/stud/forl/storage/user/forl/CUB', type=str)
+    parser.add_argument('--data_path', default='/home/stud/forl/storage/user/CUB', type=str)
     parser.add_argument('--num_workers', default=1, type=int, help='Number of data loading workers per GPU.')
     parser.add_argument('--val_freq', default=1, type=int, help="Epoch frequency for validation.")
     parser.add_argument('--output_dir', default="./checkpoints", help='Path to save logs and checkpoints')

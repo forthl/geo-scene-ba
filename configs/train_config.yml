@@ -1,17 +1,17 @@
-output_root: '../'
-pytorch_data_dir: '/home/stud/forl/storage/group/dataset_mirrors/01_incoming/'
+output_root: ''
+pytorch_data_dir: '/home/stud/forl/storage/user/datadrive/pytorch-data/'
 experiment_name: "exp1"
 log_dir: "cocostuff27"
 azureml_logging: True
 submitting_to_aml: False
 
 # Loader params
-num_workers: 24
+num_workers: 4
 max_steps: 5000
-batch_size: 16
+batch_size: 1
 
 num_neighbors: 7
-dataset_name: "cityscapes"
+dataset_name: "cocostuff27"
 
 # Used if dataset_name is "directory"
 dir_dataset_name: ~
@@ -33,7 +33,7 @@ use_fit_model: False
 dino_feat_type: "feat"
 projection_type: "nonlinear"
 #projection_type: linear
-dino_patch_size: 8
+dino_patch_size: 16
 granularity: 1
 continuous: True
 dim: 70

@@ -1,15 +1,13 @@
 import sys
 import os
-from re import T
-from shlex import join
+
 
 import numpy as np
-from click.core import F
+import torch.nn.functional as F
 
 from utils import get_transform, flexible_collate, prep_args
 
-parentdir = os.path.dirname("../STEGO")
-sys.path.append(parentdir)
+
 
 from multiprocessing import Pool
 from src.data.stego_data_utils import ContrastiveSegDataset
@@ -96,6 +94,7 @@ def my_app(cfg: DictConfig) -> None:
                 label = batch["label"].cuda()
                 polygons = batch["polygons"]
 
+
                 feats, code1 = par_model(img)
                 feats, code2 = par_model(img.flip(dims=[3]))
                 code = (code1 + code2.flip(dims=[3])) / 2
@@ -105,7 +104,7 @@ def my_app(cfg: DictConfig) -> None:
                 linear_probs = torch.log_softmax(model.linear_probe(code), dim=1).cpu()
                 cluster_probs = model.cluster_probe(code, 2, log_probs=True).cpu()
 
-                linear_crf = batched_crf(pool, img, linear_probs).argmax(1).cuda()
+               # linear_crf = batched_crf(pool, img, linear_probs).argmax(1).cuda()
                 cluster_crf = batched_crf(pool, img, cluster_probs).argmax(1).cuda()
 
                 model.test_cluster_metrics.update(cluster_crf, label)

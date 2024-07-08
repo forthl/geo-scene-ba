@@ -2,8 +2,10 @@ import json
 import os
 
 from collections import namedtuple
+
+
 from PIL import Image
-from PIL.Image import Image
+#from PIL.Image import Image
 from torchvision.datasets import VisionDataset, Cityscapes
 from torchvision.datasets.utils import verify_str_arg, iterable_to_str, extract_archive
 from typing import Any, Callable, Dict, List, Optional, Union, Tuple
@@ -66,7 +68,9 @@ class Cityscapes_Depth(Cityscapes):
         super(Cityscapes, self).__init__(root, transforms, transform, target_transform)
         self.mode = 'gtFine' if mode == 'fine' else 'gtCoarse'
         self.images_dir = os.path.join(self.root, 'leftImg8bit', split)
-        self.depth_dir = os.path.join(self.root, "disparity", split)
+        print("images_dir: ", self.images_dir)
+        self.depth_dir = os.path.join(self.root, "disparity",  "disparity_trainvaltest", "disparity", split)
+        print("depth_dir: ", self.depth_dir)
         self.targets_dir = os.path.join(self.root, self.mode, split)
         self.target_type = target_type
         self.split = split
@@ -120,7 +124,8 @@ class Cityscapes_Depth(Cityscapes):
 
         for city in os.listdir(self.images_dir):
             img_dir = os.path.join(self.images_dir, city)
-            depth_dir =os.path.join(self.depth_dir, city)
+            depth_dir = os.path.join(self.depth_dir, city)
+            print("depth_dir: ", depth_dir)
             target_dir = os.path.join(self.targets_dir, city)
             for file_name in os.listdir(img_dir):
                 target_types = []
@@ -134,7 +139,7 @@ class Cityscapes_Depth(Cityscapes):
                 self.images.append(os.path.join(img_dir, file_name))
                 self.targets.append(target_types)
 
-    def __getitem__(self, index: int) -> Tuple[Union[Image, Any], Union[tuple, Any], Union[Image, Any]]:
+    def __getitem__(self, index: int) -> Tuple[Union[Image.Image, Any], Union[tuple, Any], Union[Image.Image, Any]]:
         """
         Args:
             index (int): Index
@@ -143,7 +148,9 @@ class Cityscapes_Depth(Cityscapes):
             than one item. Otherwise target is a json object if target_type="polygon", else the image segmentation.
         """
 
+        print("aktuelles Atbeitsverzeichnis:", os.getcwd())
         image = Image.open(self.images[index]).convert('RGB')
+        print("depth: ", self.depth[index])
         depth = Image.open(self.depth[index]).convert("RGB")##check again if RGB is necessary
 
         targets: Any = []
@@ -160,7 +167,7 @@ class Cityscapes_Depth(Cityscapes):
         if self.transforms is not None:
             image, target, depth = self.transforms(image, target, depth)
 
-        return image, target ,depth
+        return image, target, depth
 
     def __len__(self) -> int:
         return len(self.images)

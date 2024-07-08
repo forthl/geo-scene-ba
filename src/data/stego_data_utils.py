@@ -76,6 +76,9 @@ class DirectoryDataset(Dataset):
     def __init__(self, root, path, image_set, transform, target_transform):
         super(DirectoryDataset, self).__init__()
         self.split = image_set
+        print(f"root: {root}, path: {path}")
+        if root is None or path is None:
+            raise ValueError("root und path dürfen nicht None sein")
         self.dir = join(root, path)
         self.img_dir = join(self.dir, "imgs", self.split)
         self.label_dir = join(self.dir, "labels", self.split)
@@ -432,7 +435,7 @@ class ContrastiveSegDataset(Dataset):
                  aug_geometric_transform=None,
                  aug_photometric_transform=None,
                  num_neighbors=5,
-                 compute_knns=False,
+                 compute_knns=True,
                  mask=False,
                  pos_labels=False,
                  pos_images=False,
@@ -545,7 +548,7 @@ class ContrastiveSegDataset(Dataset):
             "ind": ind,
             "img": extra_trans(ind, pack[0]),
             "label": extra_trans(ind, pack[1]),
-            "polygons" : pack[3]
+           # "polygons": pack[3]
         }
 
         if self.pos_images:

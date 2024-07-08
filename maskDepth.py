@@ -104,9 +104,9 @@ def get_clusters(masked_depths, sampleIdx):
     data = data[0]
 
     # cl = clusterAlgorithms.Kmeans(data=data, max_k=20)
-    cl = clusterAlgorithms.GaussianMixtureModel(data=data, max_k=20)
+    #cl = clusterAlgorithms.GaussianMixtureModel(data=data, max_k=20)
     # cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=20)
-    # cl = clusterAlgorithms.Spectral(data=data, max_k=20)
+    cl = clusterAlgorithms.Spectral(data=data, max_k=20)
     # cl = clusterAlgorithms.Dbscan(data=data)
     labels, centroids, _ = cl.find_clusters()
     return labels, centroids, data
@@ -124,9 +124,9 @@ def get_projected_clusters(masked_depths, sampleIdx):
 
     # cl = clusterAlgorithms.Kmeans(data=data, max_k=20)
     # cl = clusterAlgorithms.GaussianMixtureModel(data=data, max_k=20)
-    cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=20)
+    # cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=20)
     # cl = clusterAlgorithms.Spectral(data=data, max_k=20)
-    # cl = clusterAlgorithms.Dbscan(data=data)
+    cl = clusterAlgorithms.Dbscan(data=data, epsilon=0.1, min_samples=5)
     labels, centroids, _ = cl.find_clusters()
     labels += 1
 
@@ -137,7 +137,7 @@ def get_projected_clusters(masked_depths, sampleIdx):
 
     instance_mask = np.zeros((320, 320))
     for i, point in enumerate(unp):
-        instance_mask[point[1], point[0]] = (labels[i] + 1) * 255 / len(np.unique(labels))
+       instance_mask[point[1], point[0]] = labels[i] * 255 / len(np.unique(labels))
     #instance_mask_small = cv2.resize(instance_mask, (320, 320), cv2.INTER_NEAREST)
 
     #fig, ax = plt.subplots()
@@ -228,7 +228,7 @@ if __name__ == '__main__':
     img_path = "tmp_data/aachen_000000_000019_gtFine_color.png"
     disparity_path = "tmp_data/aachen_000000_000019_disparity.png"
 
-    sampleIdx = 10  # 1 for cars, 10 for streetlamps, 6 for street
+    sampleIdx = 1  # 1 for cars, 10 for streetlamps, 6 for street
     masks = get_segmentation_masks(img_path)
     #masked_disparities = get_masked_disparity(disparity_path, masks)
     masked_depths = get_masked_depth(disparity_path, masks)

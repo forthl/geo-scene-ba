@@ -1,4 +1,4 @@
-from utils import *
+from src.utils.stego_utils import *
 import hydra
 from omegaconf import DictConfig
 import os
@@ -7,7 +7,7 @@ import wget
 
 @hydra.main(config_path="configs", config_name="eval_config.yml")
 def my_app(cfg: DictConfig) -> None:
-    pytorch_data_dir = "~/Downloads"
+    pytorch_data_dir = "/home/stud/forl/storage/user/datadrive/pytorch-data/"
     dataset_names = [
         #"potsdam",
         "cityscapes"

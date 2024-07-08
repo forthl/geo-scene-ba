@@ -66,8 +66,8 @@ if __name__ == "__main__":
     text_padding = 30
     text_top = 100
     text_side = 320
-    font = ImageFont.truetype("/home/endrit/geo-scene/data/Arial.ttf", size=30)
-    dir_path = "/home/endrit/geo-scene/results/predictions/DBSCAN_projected_good_images/1_1"
+    font = ImageFont.truetype("/home/stud/forl/geo-scene/data/Arial.ttf", size=30)
+    dir_path = "/home/stud/forl/geo-scene/results/predictions/DBSCAN_projected_good_images/1_1"
     top_texts = ["Image", "Semantic mask", "Predicted Instances", "Target Instances"]
     side_texts = read_metrics(dir_path)
     images = read_images(dir_path,canvas_height)
@@ -103,7 +103,7 @@ if __name__ == "__main__":
             canvas.paste(images[j][i],image_position)
 
 
-    canvas.save("/home/endrit/Desktop/"+dir_path.split("/")[-1]+dir_path.split("/")[-2]+".png")
+    canvas.save("/home/stud/forl/Desktop/"+dir_path.split("/")[-1]+dir_path.split("/")[-2]+".png")
 
 
 

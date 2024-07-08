@@ -1,3 +1,5 @@
+import sys
+
 import matplotlib.pyplot
 import numpy as np
 import PIL.Image as Image
@@ -253,8 +255,16 @@ def DBSCAN_clustering(data, image_shape, epsilon, min_samples):
     labels = dbscan.labels_
     labels += 1  # this converts the label range from(-1,num_clusters-1) to (0,num_clusters) in order for each instance to have unique id in the merged instance mask
     # TODO -1 represents noise but for right now we treat it as missing data
+    print(data.shape, len(data))
+
+
     for index, point in enumerate(data):
-        instance_mask[int(point[0]), int(point[1])] = labels[index]
+        x, y = int(point[0]), int(point[1])
+        if 0 <= x < image_shape[0] and 0 <= y < image_shape[1]:
+            instance_mask[x, y] = labels[index]
+        else:
+            print(f"skip point at {x}, {y}")
+
 
     #colorMask = grayscale_to_random_color(instance_mask, num_clusters).astype(np.uint8)
     #Image.fromarray(colorMask).convert('RGB').show()
@@ -262,10 +272,19 @@ def DBSCAN_clustering(data, image_shape, epsilon, min_samples):
     return labels, instance_mask
 
 def BGMM_Clustering(data, image_shape, depth_image, max_k=20):
+    """for debugging reasons
+    print("size of data: ", data.shape, len(data))
 
     # remove lonely points to denoise point cloud
-    data, inliersIdx = remove_point_cloud_outliers(data)
-    data = np.transpose(data)
+    filtered_data, inliersIdx = remove_point_cloud_outliers(data)
+
+    if len(filtered_data < 2):
+        data = np.transpose(data)
+    else:
+        data = np.transpose(filtered_data)
+
+    print("size of data: ", data.shape, len(data))
+"""
 
     # cluster points
     cl = clusterAlgorithms.BayesianGaussianMixtureModel(data=data, max_k=20)

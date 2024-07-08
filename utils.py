@@ -12,6 +12,7 @@ import torch.nn.functional as F
 import wget
 from PIL import Image
 from scipy.optimize import linear_sum_assignment
+
 #from torch._six import string_classes
 string_classes = string
 from torch.utils.data import DataLoader
@@ -273,6 +274,9 @@ class UnsupervisedMetrics(Metric):
         metric_dict = {self.prefix + "mIoU": iou[~torch.isnan(iou)].mean().item(),
                        self.prefix + "Accuracy": opc.item()}
         return {k: 100 * v for k, v in metric_dict.items()}
+
+
+string_classes = (str, bytes)
 
 
 def flexible_collate(batch):

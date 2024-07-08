@@ -129,7 +129,7 @@ class RandomCropComputer(Dataset):
         for crop_num, (img, label) in enumerate(zip(imgs, labels)):
             img_num = item * 5 + crop_num
             img_arr = img.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy()
-            label_arr = (label + 1).unsqueeze(0).permute(1, 2, 3, 0).to('cpu', torch.uint8).numpy().squeeze(-1)
+            label_arr = (label + 1).unsqueeze(0).permute(1, 2, 0).to('cpu', torch.uint8).numpy().squeeze(-1)
             Image.fromarray(img_arr).save(os.path.join(self.img_dir, "{}.jpg".format(img_num)), 'JPEG')
             Image.fromarray(label_arr).save(os.path.join(self.label_dir, "{}.png".format(img_num)), 'PNG')
         return True
@@ -149,8 +149,8 @@ def my_app(cfg: DictConfig) -> None:
     # crop_ratios = [.5, .7]
 
     dataset_names = ["cityscapes"]
-    img_sets = ["train", "val"]
-    crop_types = ["five"]
+    img_sets = ["val", "train"]
+    crop_types = ["five", None]
     crop_ratios = [.5]
 
     for crop_ratio in crop_ratios:

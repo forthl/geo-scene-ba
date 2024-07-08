@@ -85,7 +85,7 @@ class ContrastiveDepthDataset(Dataset):
                  aug_geometric_transform=None,
                  aug_photometric_transform=None,
                  num_neighbors=5,
-                 compute_knns=False,
+                 compute_knns=True,
                  mask=False,
                  pos_labels=False,
                  pos_images=False,

@@ -1,10 +1,8 @@
-import PIL.Image
 import cv2
 import numpy as np
 import torch.multiprocessing
 from scipy.optimize import linear_sum_assignment
-from sklearn.metrics import average_precision_score
-from PIL import *
+
 
 
 def get_assigment(preds,
@@ -133,7 +131,23 @@ def ap_ar_IoU(target,pred, index):
 
     return precision, recall, pixelWise_IoU
 
+def get_mean_IoU(preds, target):
+    bounding_boxes_target = get_bounding_boxes(target)
+    bounding_boxes_preds = get_bounding_boxes(preds)
+    IoU = []
 
+    for index in list(bounding_boxes_target.keys()):
+        if bounding_boxes_preds.get(index) is not None:
+            IoU.append(bb_intersection_over_union(bounding_boxes_target[index], bounding_boxes_preds[index]))
+        else:
+            IoU.append(0)
+
+    if len(IoU) == 0:
+        return 0
+
+    mean_IoU = sum(IoU) / len(IoU)
+
+    return mean_IoU
 
 def get_avg_IoU_AP_AR(target, prediction):
     bounding_boxes_target = get_bounding_boxes(target)

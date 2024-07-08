@@ -1,7 +1,7 @@
 import os
 
 import numpy as np
-from click.core import F
+import torch.nn.functional as F
 from torch.distributed.pipeline.sync.dependency import join
 
 from src.modules import *
@@ -23,12 +23,12 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 class UnlabeledImageFolder(Dataset):
     def __init__(self, root, transform):
         super(UnlabeledImageFolder, self).__init__()
-        self.root = join(root)
+        self.root = os.path.join(root)
         self.transform = transform
         self.images = os.listdir(self.root)
 
     def __getitem__(self, index):
-        image = Image.open(join(self.root, self.images[index])).convert('RGB')
+        image = Image.open(os.path.join(self.root, self.images[index])).convert('RGB')
         seed = np.random.randint(2147483647)
         random.seed(seed)
         torch.manual_seed(seed)
@@ -44,8 +44,8 @@ class UnlabeledImageFolder(Dataset):
 def my_app(cfg: DictConfig) -> None:
     result_dir = "../results/predictions/{}".format(cfg.experiment_name)
     os.makedirs(result_dir, exist_ok=True)
-    os.makedirs(join(result_dir, "cluster"), exist_ok=True)
-    os.makedirs(join(result_dir, "linear"), exist_ok=True)
+    os.makedirs(os.path.join(result_dir, "cluster"), exist_ok=True)
+    os.makedirs(os.path.join(result_dir, "linear"), exist_ok=True)
 
     model = LitUnsupervisedSegmenter.load_from_checkpoint(cfg.model_path)
     print(OmegaConf.to_yaml(model.cfg))
@@ -84,8 +84,8 @@ def my_app(cfg: DictConfig) -> None:
                 cluster_crf = dense_crf(single_img, cluster_probs[j]).argmax(0)
 
                 new_name = ".".join(name[j].split(".")[:-1]) + ".png"
-                Image.fromarray(linear_crf.astype(np.uint8)).save(join(result_dir, "linear", new_name))
-                Image.fromarray(cluster_crf.astype(np.uint8)).save(join(result_dir, "cluster", new_name))
+                Image.fromarray(linear_crf.astype(np.uint8)).save(os.path.join(result_dir, "linear", new_name))
+                Image.fromarray(cluster_crf.astype(np.uint8)).save(os.path.join(result_dir, "cluster", new_name))
 
 
 if __name__ == "__main__":
